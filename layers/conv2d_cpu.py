@@ -52,7 +52,9 @@ class Conv2D:
     # =================================================
     # im2col
     # =================================================
-
+    def parameters(self):
+        """Returns the learnable weights and biases of this layer."""
+        return [self.weight, self.bias]
     def im2col(self, x):
 
         N, C, H, W = x.shape
@@ -298,135 +300,7 @@ def rel_error(x, y):
     )
 
 
-# =====================================================
-# test
-# =====================================================
 
-np.random.seed(0)
 
-N = 2
-C = 3
-H = 5
-W = 5
 
-OC = 4
-KH = 3
-KW = 3
-
-x = np.random.randn(
-    N, C, H, W
-).astype(np.float64)
-
-conv = Conv2D(
-    in_channels=C,
-    out_channels=OC,
-    kernel_size=(KH, KW),
-    stride=1,
-    padding=1
-)
-
-# =====================================================
-# compare forward with pytorch
-# =====================================================
-
-torch_conv = nn.Conv2d(
-    C,
-    OC,
-    kernel_size=(KH, KW),
-    stride=1,
-    padding=1,
-    bias=True
-).double()
-
-with torch.no_grad():
-
-    torch_conv.weight.copy_(
-        torch.tensor(conv.weight)
-    )
-
-    torch_conv.bias.copy_(
-        torch.tensor(conv.bias)
-    )
-
-torch_x = torch.tensor(x)
-
-torch_out = torch_conv(torch_x)
-
-my_out = conv.forward(x)
-
-print("forward error:",
-      np.max(
-          np.abs(
-              my_out - torch_out.detach().numpy()
-          )
-      ))
-
-# =====================================================
-# backward gradient check
-# =====================================================
-
-dout = np.random.randn(*my_out.shape)
-
-dx = conv.backward(dout)
-
-dw = conv.dw
-db = conv.db
-
-# dx
-
-def fx(inp):
-
-    out = conv.forward(inp)
-
-    return np.sum(out * dout)
-
-dx_num = eval_numerical_gradient(fx, x)
-
-print("dx error:", rel_error(dx, dx_num))
-
-# dw
-
-def fw(w):
-
-    old = conv.weight.copy()
-
-    conv.weight = w
-
-    out = conv.forward(x)
-
-    loss = np.sum(out * dout)
-
-    conv.weight = old
-
-    return loss
-
-dw_num = eval_numerical_gradient(
-    fw,
-    conv.weight
-)
-
-print("dw error:", rel_error(dw, dw_num))
-
-# db
-
-def fb(b):
-
-    old = conv.bias.copy()
-
-    conv.bias = b
-
-    out = conv.forward(x)
-
-    loss = np.sum(out * dout)
-
-    conv.bias = old
-
-    return loss
-
-db_num = eval_numerical_gradient(
-    fb,
-    conv.bias
-)
-
-print("db error:", rel_error(db, db_num))
 

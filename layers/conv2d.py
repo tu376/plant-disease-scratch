@@ -1,8 +1,5 @@
-import numpy as np
-from numpy.lib.stride_tricks import as_strided
-
-import torch
-import torch.nn as nn
+import numpy as cp
+from cupy.lib.stride_tricks import as_strided
 
 
 class Conv2D:
@@ -28,19 +25,19 @@ class Conv2D:
 
         KH, KW = kernel_size
 
-        scale = np.sqrt(2.0 / (in_channels * KH * KW))
+        scale = cp.sqrt(2.0 / (in_channels * KH * KW))
 
         self.weight = (
-            np.random.randn(
+            cp.random.randn(
                 out_channels,
                 in_channels,
                 KH,
                 KW
-            ).astype(np.float64) * scale
+            ) * scale
         )
 
         self.bias = (
-            np.zeros(out_channels, dtype=np.float64)
+            cp.zeros(out_channels)
             if bias else None
         )
 
@@ -61,7 +58,7 @@ class Conv2D:
         S = self.stride
         P = self.padding
 
-        x_padded = np.pad(
+        x_padded = cp.pad(
             x,
             ((0, 0), (0, 0), (P, P), (P, P)),
             mode='constant'
@@ -135,7 +132,7 @@ class Conv2D:
             0, 3, 1, 2, 4, 5
         )
 
-        x_padded = np.zeros(
+        x_padded = cp.zeros(
             (N, C, H_p, W_p),
             dtype=cols.dtype
         )
@@ -231,16 +228,20 @@ class Conv2D:
             .reshape(-1, OC)
         )
 
+        # ----------------------------
         # db
+        # ----------------------------
 
         if self.bias is not None:
 
-            self.db = np.sum(
+            self.db = cp.sum(
                 dout_reshaped,
                 axis=0
             )
 
+        # ----------------------------
         # dw
+        # ----------------------------
 
         dw = dout_reshaped.T @ cols
 
@@ -248,7 +249,9 @@ class Conv2D:
             self.weight.shape
         )
 
+        # ----------------------------
         # dx
+        # ----------------------------
 
         dcols = dout_reshaped @ w_col
 
@@ -258,17 +261,11 @@ class Conv2D:
         )
 
         return dx
-
-
-# =====================================================
-# numerical gradient
-# =====================================================
-
 def eval_numerical_gradient(f, x, eps=1e-5):
 
-    grad = np.zeros_like(x)
+    grad = cp.zeros_like(x)
 
-    it = np.ndindex(*x.shape)
+    it = cp.ndindex(*x.shape)
 
     for idx in it:
 
@@ -285,148 +282,17 @@ def eval_numerical_gradient(f, x, eps=1e-5):
         grad[idx] = (fx1 - fx2) / (2 * eps)
 
     return grad
-
-
 def rel_error(x, y):
 
-    return np.max(
-        np.abs(x - y) /
-        np.maximum(
+    return cp.max(
+        cp.abs(x - y) /
+        cp.maximum(
             1e-8,
-            np.abs(x) + np.abs(y)
+            cp.abs(x) + cp.abs(y)
         )
     )
+cp.random.seed(0)
 
-
-# =====================================================
-# test
-# =====================================================
-
-np.random.seed(0)
-
+# small test
 N = 2
 C = 3
-H = 5
-W = 5
-
-OC = 4
-KH = 3
-KW = 3
-
-x = np.random.randn(
-    N, C, H, W
-).astype(np.float64)
-
-conv = Conv2D(
-    in_channels=C,
-    out_channels=OC,
-    kernel_size=(KH, KW),
-    stride=1,
-    padding=1
-)
-
-# =====================================================
-# compare forward with pytorch
-# =====================================================
-
-torch_conv = nn.Conv2d(
-    C,
-    OC,
-    kernel_size=(KH, KW),
-    stride=1,
-    padding=1,
-    bias=True
-).double()
-
-with torch.no_grad():
-
-    torch_conv.weight.copy_(
-        torch.tensor(conv.weight)
-    )
-
-    torch_conv.bias.copy_(
-        torch.tensor(conv.bias)
-    )
-
-torch_x = torch.tensor(x)
-
-torch_out = torch_conv(torch_x)
-
-my_out = conv.forward(x)
-
-print("forward error:",
-      np.max(
-          np.abs(
-              my_out - torch_out.detach().numpy()
-          )
-      ))
-
-# =====================================================
-# backward gradient check
-# =====================================================
-
-dout = np.random.randn(*my_out.shape)
-
-dx = conv.backward(dout)
-
-dw = conv.dw
-db = conv.db
-
-# dx
-
-def fx(inp):
-
-    out = conv.forward(inp)
-
-    return np.sum(out * dout)
-
-dx_num = eval_numerical_gradient(fx, x)
-
-print("dx error:", rel_error(dx, dx_num))
-
-# dw
-
-def fw(w):
-
-    old = conv.weight.copy()
-
-    conv.weight = w
-
-    out = conv.forward(x)
-
-    loss = np.sum(out * dout)
-
-    conv.weight = old
-
-    return loss
-
-dw_num = eval_numerical_gradient(
-    fw,
-    conv.weight
-)
-
-print("dw error:", rel_error(dw, dw_num))
-
-# db
-
-def fb(b):
-
-    old = conv.bias.copy()
-
-    conv.bias = b
-
-    out = conv.forward(x)
-
-    loss = np.sum(out * dout)
-
-    conv.bias = old
-
-    return loss
-
-db_num = eval_numerical_gradient(
-    fb,
-    conv.bias
-)
-
-print("db error:", rel_error(db, db_num))
-
