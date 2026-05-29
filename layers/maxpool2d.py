@@ -1,70 +1,134 @@
 import numpy as np
 
+
 class MaxPool2D:
-    """
-    MaxPool2D layer with forward and backward pass.
-    Stores binary mask of argmax positions for backprop.
-    """
 
-    def __init__(self, pool_size=2, stride=2):
-        self.pool_size = pool_size
+    def __init__(
+        self,
+        kernel_size=2,
+        stride=2
+    ):
+
+        self.kernel_size = kernel_size
         self.stride = stride
-        self.input = None
-        self.mask = None
 
-    def forward(self, input):
+    # =========================================
+    # Forward
+    # =========================================
+
+    def forward(self, x):
         """
-        Forward pass using sliding window max pooling.
-        Input:  (C, H, W)
-        Output: (C, H_out, W_out)
+        x shape:
+            (B, C, H, W)
         """
-        self.input = input
-        C, H, W = input.shape
 
-        H_out = (H - self.pool_size) // self.stride + 1
-        W_out = (W - self.pool_size) // self.stride + 1
+        self.x = x
 
-        output = np.zeros((C, H_out, W_out))
-        self.mask = np.zeros_like(input)
+        B, C, H, W = x.shape
 
-        for c in range(C):
-            for i in range(H_out):
-                for j in range(W_out):
-                    h_start = i * self.stride
-                    h_end   = h_start + self.pool_size
-                    w_start = j * self.stride
-                    w_end   = w_start + self.pool_size
+        K = self.kernel_size
+        S = self.stride
 
-                    patch = input[c, h_start:h_end, w_start:w_end]
-                    max_val = np.max(patch)
-                    output[c, i, j] = max_val
+        out_h = (H - K) // S + 1
+        out_w = (W - K) // S + 1
 
-                    # Build mask: 1 at the position of the maximum value
-                    max_idx = np.argmax(patch)
-                    row = max_idx // self.pool_size
-                    col = max_idx % self.pool_size
-                    self.mask[c, h_start + row, w_start + col] = 1
+        out = np.zeros(
+            (B, C, out_h, out_w)
+        )
 
-        return output
+        # store max positions
+        self.max_indices = {}
 
-    def backward(self, d_output):
+        for b in range(B):
+
+            for c in range(C):
+
+                for i in range(out_h):
+
+                    for j in range(out_w):
+
+                        h_start = i * S
+                        h_end = h_start + K
+
+                        w_start = j * S
+                        w_end = w_start + K
+
+                        window = x[
+                            b,
+                            c,
+                            h_start:h_end,
+                            w_start:w_end
+                        ]
+
+                        max_val = np.max(window)
+
+                        out[b, c, i, j] = max_val
+
+                        # ---------------------------------
+                        # store max index for backward
+                        # ---------------------------------
+
+                        max_pos = np.unravel_index(
+                            np.argmax(window),
+                            window.shape
+                        )
+
+                        self.max_indices[
+                            (b, c, i, j)
+                        ] = (
+                            h_start + max_pos[0],
+                            w_start + max_pos[1]
+                        )
+
+        return out
+
+    # =========================================
+    # Backward
+    # =========================================
+
+    def backward(self, grad):
         """
-        Backward pass: route gradient only to the max position.
-        d_output: (C, H_out, W_out)
-        Returns d_input: (C, H, W)
+        grad shape:
+            (B, C, out_h, out_w)
         """
-        C, H_out, W_out = d_output.shape
-        d_input = np.zeros_like(self.input)
 
-        for c in range(C):
-            for i in range(H_out):
-                for j in range(W_out):
-                    h_start = i * self.stride
-                    h_end   = h_start + self.pool_size
-                    w_start = j * self.stride
-                    w_end   = w_start + self.pool_size
+        B, C, H, W = self.x.shape
 
-                    patch_mask = self.mask[c, h_start:h_end, w_start:w_end]
-                    d_input[c, h_start:h_end, w_start:w_end] += patch_mask * d_output[c, i, j]
+        dx = np.zeros_like(self.x)
 
-        return d_input
+        out_h = grad.shape[2]
+        out_w = grad.shape[3]
+
+        for b in range(B):
+
+            for c in range(C):
+
+                for i in range(out_h):
+
+                    for j in range(out_w):
+
+                        h_idx, w_idx = self.max_indices[
+                            (b, c, i, j)
+                        ]
+
+                        dx[
+                            b,
+                            c,
+                            h_idx,
+                            w_idx
+                        ] += grad[
+                            b,
+                            c,
+                            i,
+                            j
+                        ]
+
+        return dx
+
+    # =========================================
+    # Parameters
+    # =========================================
+
+    def parameters(self):
+
+        return []

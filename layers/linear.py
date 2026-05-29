@@ -11,7 +11,9 @@ class Linear:
 
         # cache
         self.x = None
-
+    def parameters(self):
+        """Returns the learnable weights and biases of this layer."""
+        return [self.W, self.b]
     def forward(self, x):
         """
         x shape: (batch_size, in_features)
