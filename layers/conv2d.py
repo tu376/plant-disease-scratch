@@ -1,298 +1,132 @@
-import numpy as cp
-from cupy.lib.stride_tricks import as_strided
-
+import numpy as np
 
 class Conv2D:
+    """
+    2-D Convolution layer.
+      input  : (C_in,  H_in,  W_in)
+      output : (C_out, H_out, W_out)
+      kernels: (C_out, C_in, K, K)
+    stride = 1, configurable padding.
+    Forward  uses im2col  (patch → column matrix).
+    Backward uses col2im  (column matrix → patch accumulation).
+    """
 
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        padding=0,
-        bias=True
-    ):
+    def __init__(self, input_shape, kernel_size, C_out, padding=0):
+        C_in, H_in, W_in = input_shape
 
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size, kernel_size)
+        H_out = H_in + 2 * padding - kernel_size + 1
+        W_out = W_in + 2 * padding - kernel_size + 1
 
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+        self.C_in        = C_in
+        self.H_in        = H_in
+        self.W_in        = W_in
+        self.C_out       = C_out
+        self.H_out       = H_out
+        self.W_out       = W_out
         self.kernel_size = kernel_size
-        self.stride = stride
-        self.padding = padding
-
-        KH, KW = kernel_size
-
-        scale = cp.sqrt(2.0 / (in_channels * KH * KW))
-
-        self.weight = (
-            cp.random.randn(
-                out_channels,
-                in_channels,
-                KH,
-                KW
-            ) * scale
-        )
-
-        self.bias = (
-            cp.zeros(out_channels)
-            if bias else None
-        )
-
-        self.dw = None
-        self.db = None
+        self.padding     = padding
+
+        self.output_shape = (C_out, H_out, W_out)
+        self.kernel_shape = (C_out, C_in, kernel_size, kernel_size)
+
+        # He initialisation
+        fan_in = C_in * kernel_size * kernel_size
+        self.kernels = np.random.randn(*self.kernel_shape) * np.sqrt(2.0 / fan_in)
+        self.biases  = np.zeros(C_out)
+
+        self.d_kernels = np.zeros_like(self.kernels)
+        self.d_biases  = np.zeros_like(self.biases)
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def pad_input(self, input):
+        if self.padding == 0:
+            return input
+        return np.pad(input,
+                      ((0, 0),
+                       (self.padding, self.padding),
+                       (self.padding, self.padding)),
+                      mode='constant')
+
+    def im2col(self, input_padded):
+        """
+        Rearrange every kernel-sized patch into a column.
+        Returns array of shape (C_in*K*K, H_out*W_out).
+        """
+        K = self.kernel_size
+        cols = []
+        for i in range(self.H_out):
+            for j in range(self.W_out):
+                patch = input_padded[:, i:i+K, j:j+K]  # (C_in, K, K)
+                cols.append(patch.reshape(-1))           # (C_in*K*K,)
+        return np.array(cols).T  # (C_in*K*K, H_out*W_out)
+
+    def col2im(self, d_input_col):
+        """
+        Accumulate column gradients back into the (padded) input tensor.
+        d_input_col: (C_in*K*K, H_out*W_out)
+        Returns d_input: (C_in, H_in, W_in)  (padding removed).
+        """
+        K         = self.kernel_size
+        padded_H  = self.H_in + 2 * self.padding
+        padded_W  = self.W_in + 2 * self.padding
+
+        d_input_padded = np.zeros((self.C_in, padded_H, padded_W))
+
+        col_idx = 0
+        for i in range(self.H_out):
+            for j in range(self.W_out):
+                patch = d_input_col[:, col_idx].reshape(self.C_in, K, K)
+                d_input_padded[:, i:i+K, j:j+K] += patch
+                col_idx += 1
+
+        if self.padding == 0:
+            return d_input_padded
+        return d_input_padded[:, self.padding:-self.padding,
+                                 self.padding:-self.padding]
+
+    # ------------------------------------------------------------------
+    # Forward / Backward
+    # ------------------------------------------------------------------
+
+    def forward(self, input):
+        """
+        Forward pass via im2col + matrix multiply.
+        input:  (C_in, H_in, W_in)
+        output: (C_out, H_out, W_out)
+        """
+        self.input        = input
+        self.input_padded = self.pad_input(input)
+        self.input_col    = self.im2col(self.input_padded)
+
+        kernels_col = self.kernels.reshape(self.C_out, -1)        # (C_out, C_in*K*K)
+        output      = kernels_col @ self.input_col + self.biases[:, None]  # (C_out, H_out*W_out)
+
+        return output.reshape(self.C_out, self.H_out, self.W_out)
+
+    def backward(self, d_output):
+        """
+        Backward pass; stores d_kernels, d_biases; returns d_input.
+        d_output: (C_out, H_out, W_out)
+        """
+        d_output_col = d_output.reshape(self.C_out, -1)  # (C_out, H_out*W_out)
+
+        # dL/db  — sum over spatial positions
+        self.d_biases = d_output_col.sum(axis=1)          # (C_out,)
+
+        # dL/dW  — outer product in column space
+        d_kernels_col  = d_output_col @ self.input_col.T  # (C_out, C_in*K*K)
+        self.d_kernels = d_kernels_col.reshape(self.kernel_shape)
+
+        # dL/dX  — backprop through im2col
+        kernels_col  = self.kernels.reshape(self.C_out, -1)
+        d_input_col  = kernels_col.T @ d_output_col       # (C_in*K*K, H_out*W_out)
+        d_input      = self.col2im(d_input_col)
+
+        return d_input
 
-        self.cache = None
-
-    # =================================================
-    # im2col
-    # =================================================
-
-    def im2col(self, x):
-
-        N, C, H, W = x.shape
-
-        KH, KW = self.kernel_size
-        S = self.stride
-        P = self.padding
-
-        x_padded = cp.pad(
-            x,
-            ((0, 0), (0, 0), (P, P), (P, P)),
-            mode='constant'
-        )
-
-        H_p, W_p = x_padded.shape[2:]
-
-        OH = (H_p - KH) // S + 1
-        OW = (W_p - KW) // S + 1
-
-        shape = (
-            N,
-            C,
-            OH,
-            OW,
-            KH,
-            KW
-        )
-
-        strides = (
-            x_padded.strides[0],
-            x_padded.strides[1],
-            x_padded.strides[2] * S,
-            x_padded.strides[3] * S,
-            x_padded.strides[2],
-            x_padded.strides[3]
-        )
-
-        cols = as_strided(
-            x_padded,
-            shape=shape,
-            strides=strides
-        )
-
-        cols = cols.transpose(
-            0, 2, 3, 1, 4, 5
-        )
-
-        cols = cols.reshape(
-            N * OH * OW,
-            -1
-        )
-
-        return cols, x_padded.shape
-
-    # =================================================
-    # col2im
-    # =================================================
-
-    def col2im(self, cols, x_shape):
-
-        N, C, H_p, W_p = x_shape
-
-        KH, KW = self.kernel_size
-        S = self.stride
-        P = self.padding
-
-        OH = (H_p - KH) // S + 1
-        OW = (W_p - KW) // S + 1
-
-        cols = cols.reshape(
-            N,
-            OH,
-            OW,
-            C,
-            KH,
-            KW
-        )
-
-        cols = cols.transpose(
-            0, 3, 1, 2, 4, 5
-        )
-
-        x_padded = cp.zeros(
-            (N, C, H_p, W_p),
-            dtype=cols.dtype
-        )
-
-        for y in range(KH):
-
-            y_max = y + S * OH
-
-            for x in range(KW):
-
-                x_max = x + S * OW
-
-                x_padded[
-                    :,
-                    :,
-                    y:y_max:S,
-                    x:x_max:S
-                ] += cols[:, :, :, :, y, x]
-
-        if P == 0:
-            return x_padded
-
-        return x_padded[
-            :,
-            :,
-            P:-P,
-            P:-P
-        ]
-
-    # =================================================
-    # forward
-    # =================================================
-
-    def forward(self, x):
-
-        N, C, H, W = x.shape
-
-        KH, KW = self.kernel_size
-        S = self.stride
-        P = self.padding
-
-        OH = (H + 2 * P - KH) // S + 1
-        OW = (W + 2 * P - KW) // S + 1
-
-        cols, padded_shape = self.im2col(x)
-
-        w_col = self.weight.reshape(
-            self.out_channels,
-            -1
-        )
-
-        out = cols @ w_col.T
-
-        if self.bias is not None:
-            out += self.bias
-
-        out = out.reshape(
-            N,
-            OH,
-            OW,
-            self.out_channels
-        )
-
-        out = out.transpose(
-            0,
-            3,
-            1,
-            2
-        )
-
-        self.cache = (
-            x,
-            cols,
-            padded_shape,
-            w_col
-        )
-
-        return out
-
-    # =================================================
-    # backward
-    # =================================================
-
-    def backward(self, dout):
-
-        x, cols, padded_shape, w_col = self.cache
-
-        N, OC, OH, OW = dout.shape
-
-        dout_reshaped = (
-            dout
-            .transpose(0, 2, 3, 1)
-            .reshape(-1, OC)
-        )
-
-        # ----------------------------
-        # db
-        # ----------------------------
-
-        if self.bias is not None:
-
-            self.db = cp.sum(
-                dout_reshaped,
-                axis=0
-            )
-
-        # ----------------------------
-        # dw
-        # ----------------------------
-
-        dw = dout_reshaped.T @ cols
-
-        self.dw = dw.reshape(
-            self.weight.shape
-        )
-
-        # ----------------------------
-        # dx
-        # ----------------------------
-
-        dcols = dout_reshaped @ w_col
-
-        dx = self.col2im(
-            dcols,
-            padded_shape
-        )
-
-        return dx
-def eval_numerical_gradient(f, x, eps=1e-5):
-
-    grad = cp.zeros_like(x)
-
-    it = cp.ndindex(*x.shape)
-
-    for idx in it:
-
-        old = x[idx]
-
-        x[idx] = old + eps
-        fx1 = f(x)
-
-        x[idx] = old - eps
-        fx2 = f(x)
-
-        x[idx] = old
-
-        grad[idx] = (fx1 - fx2) / (2 * eps)
-
-    return grad
-def rel_error(x, y):
-
-    return cp.max(
-        cp.abs(x - y) /
-        cp.maximum(
-            1e-8,
-            cp.abs(x) + cp.abs(y)
-        )
-    )
-cp.random.seed(0)
-
-# small test
-N = 2
-C = 3
+    def update(self, learning_rate):
+        self.kernels -= learning_rate * self.d_kernels
+        self.biases  -= learning_rate * self.d_biases
