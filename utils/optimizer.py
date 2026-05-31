@@ -1,5 +1,4 @@
-import numpy as np
-
+import cupy as cp
 
 class SGD:
     def __init__(self, params, lr=0.01):
@@ -58,10 +57,10 @@ class SGDMomentum:
         for i, param in enumerate(params):
 
             if hasattr(param, "W"):
-                self.vW[i] = np.zeros_like(param.W)
+                self.vW[i] = cp.zeros_like(param.W)
 
             if hasattr(param, "b"):
-                self.vb[i] = np.zeros_like(param.b)
+                self.vb[i] = cp.zeros_like(param.b)
 
     def step(self):
 
@@ -95,6 +94,7 @@ class SGDMomentum:
             if hasattr(param, "db"):
                 param.db.fill(0)
 class Adam:
+
     def __init__(
         self,
         params,
@@ -113,23 +113,23 @@ class Adam:
 
         self.t = 0
 
-        self.mW = {}
-        self.vW = {}
+        self.mw = {}
+        self.vw = {}
 
         self.mb = {}
         self.vb = {}
 
         for i, param in enumerate(params):
 
-            if hasattr(param, "W"):
+            if hasattr(param, "weight"):
 
-                self.mW[i] = np.zeros_like(param.W)
-                self.vW[i] = np.zeros_like(param.W)
+                self.mw[i] = cp.zeros_like(param.weight)
+                self.vw[i] = cp.zeros_like(param.weight)
 
-            if hasattr(param, "b"):
+            if hasattr(param, "bias") and param.bias is not None:
 
-                self.mb[i] = np.zeros_like(param.b)
-                self.vb[i] = np.zeros_like(param.b)
+                self.mb[i] = cp.zeros_like(param.bias)
+                self.vb[i] = cp.zeros_like(param.bias)
 
     def step(self):
 
@@ -137,37 +137,49 @@ class Adam:
 
         for i, param in enumerate(self.params):
 
-            if hasattr(param, "W"):
+            # -------------------------
+            # weight
+            # -------------------------
 
-                # first moment
-                self.mW[i] = (
-                    self.beta1 * self.mW[i]
-                    + (1 - self.beta1) * param.dW
+            if (
+                hasattr(param, "weight")
+                and hasattr(param, "dw")
+                and param.dw is not None
+            ):
+
+                self.mw[i] = (
+                    self.beta1 * self.mw[i]
+                    + (1 - self.beta1) * param.dw
                 )
 
-                # second moment
-                self.vW[i] = (
-                    self.beta2 * self.vW[i]
-                    + (1 - self.beta2) * (param.dW ** 2)
+                self.vw[i] = (
+                    self.beta2 * self.vw[i]
+                    + (1 - self.beta2) * (param.dw ** 2)
                 )
 
-                # bias correction
-                m_hat = self.mW[i] / (
+                m_hat = self.mw[i] / (
                     1 - self.beta1 ** self.t
                 )
 
-                v_hat = self.vW[i] / (
+                v_hat = self.vw[i] / (
                     1 - self.beta2 ** self.t
                 )
 
-                # update
-                param.W -= (
+                param.weight -= (
                     self.lr
                     * m_hat
-                    / (np.sqrt(v_hat) + self.eps)
+                    / (cp.sqrt(v_hat) + self.eps)
                 )
 
-            if hasattr(param, "b"):
+            # -------------------------
+            # bias
+            # -------------------------
+
+            if (
+                hasattr(param, "bias")
+                and hasattr(param, "db")
+                and param.db is not None
+            ):
 
                 self.mb[i] = (
                     self.beta1 * self.mb[i]
@@ -187,18 +199,18 @@ class Adam:
                     1 - self.beta2 ** self.t
                 )
 
-                param.b -= (
+                param.bias -= (
                     self.lr
                     * m_hat
-                    / (np.sqrt(v_hat) + self.eps)
+                    / (cp.sqrt(v_hat) + self.eps)
                 )
 
     def zero_grad(self):
 
         for param in self.params:
 
-            if hasattr(param, "dW"):
-                param.dW.fill(0)
+            if hasattr(param, "dw") and param.dw is not None:
+                param.dw.fill(0)
 
-            if hasattr(param, "db"):
+            if hasattr(param, "db") and param.db is not None:
                 param.db.fill(0)

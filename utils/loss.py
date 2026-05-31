@@ -1,5 +1,4 @@
-import numpy as np
-
+import cupy as cp
 
 # =====================================================
 # 1. Cross Entropy Loss
@@ -13,15 +12,15 @@ class CrossEntropyLoss:
 
     def softmax(self, logits):
 
-        logits = logits - np.max(
+        logits = logits - cp.max(
             logits,
             axis=1,
             keepdims=True
         )
 
-        exp_logits = np.exp(logits)
+        exp_logits = cp.exp(logits)
 
-        probs = exp_logits / np.sum(
+        probs = exp_logits / cp.sum(
             exp_logits,
             axis=1,
             keepdims=True
@@ -46,13 +45,13 @@ class CrossEntropyLoss:
         eps = 1e-12
 
         correct_probs = probs[
-            np.arange(N),
+            cp.arange(N),
             targets
         ]
 
-        loss = -np.log(correct_probs + eps)
+        loss = -cp.log(correct_probs + eps)
 
-        loss = np.mean(loss)
+        loss = cp.mean(loss)
 
         self.cache = (
             probs,
@@ -69,7 +68,7 @@ class CrossEntropyLoss:
         dlogits = probs.copy()
 
         dlogits[
-            np.arange(N),
+            cp.arange(N),
             targets
         ] -= 1
 
@@ -98,15 +97,15 @@ class FocalLoss:
 
     def softmax(self, x):
 
-        x = x - np.max(
+        x = x - cp.max(
             x,
             axis=1,
             keepdims=True
         )
 
-        exp_x = np.exp(x)
+        exp_x = cp.exp(x)
 
-        return exp_x / np.sum(
+        return exp_x / cp.sum(
             exp_x,
             axis=1,
             keepdims=True
@@ -142,11 +141,11 @@ class FocalLoss:
         # -------------------------
 
         pt = probs[
-            np.arange(self.batch_size),
+            cp.arange(self.batch_size),
             targets
         ]
 
-        pt = np.clip(
+        pt = cp.clip(
             pt,
             self.eps,
             1.0
@@ -159,10 +158,10 @@ class FocalLoss:
         loss = (
             -self.alpha
             * ((1 - pt) ** self.gamma)
-            * np.log(pt)
+            * cp.log(pt)
         )
 
-        return np.mean(loss)
+        return cp.mean(loss)
 
     def backward(self):
         """
@@ -175,7 +174,7 @@ class FocalLoss:
         grad = self.probs.copy()
 
         grad[
-            np.arange(self.batch_size),
+            cp.arange(self.batch_size),
             self.targets
         ] -= 1
 
@@ -184,7 +183,7 @@ class FocalLoss:
         # -------------------------
 
         pt = self.probs[
-            np.arange(self.batch_size),
+            cp.arange(self.batch_size),
             self.targets
         ]
         focal_weight = (

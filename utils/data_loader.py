@@ -1,9 +1,9 @@
 import os
 from PIL import Image
 
-import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+import cupy as cp
 
 
 class ImageClassificationDataset(Dataset):
@@ -94,16 +94,18 @@ def create_dataloaders(
     train_dir,
     val_dir,
     batch_size=32,
-    image_size=224,
+    image_size=64,
     num_workers=0
 ):
 
     train_transform = transforms.Compose([
-        transforms.ToTensor()
+        transforms.Resize((image_size, image_size)),
+        transforms.ToTensor(),
     ])
 
     val_transform = transforms.Compose([
-        transforms.ToTensor()
+        transforms.Resize((image_size, image_size)),
+        transforms.ToTensor(),
     ])
 
     train_dataset = ImageClassificationDataset(
@@ -135,31 +137,17 @@ def create_dataloaders(
         val_loader,
         train_dataset.classes
     )
+def dataloader_to_cupy(loader):
 
+    X_batches = []
+    y_batches = []
 
-# =====================================================
-# example usage
-# =====================================================
+    for images, labels in loader:
 
-if __name__ == "__main__":
+        X_batches.append(cp.asarray(images))
+        y_batches.append(cp.asarray(labels))
 
-    train_loader, val_loader, classes = create_dataloaders(
-        train_dir="dataset/train",
-        val_dir="dataset/val",
-        batch_size=8,
-        image_size=128
-    )
+    X = cp.concatenate(X_batches, axis=0)
+    y = cp.concatenate(y_batches, axis=0)
 
-    print("Classes:", classes)
-
-    print("Number of classes:", len(classes))
-
-    for images, labels in train_loader:
-
-        print("Image batch shape:", images.shape)
-
-        print("Label batch shape:", labels.shape)
-
-        print("Labels:", labels)
-
-        break
+    return X, y

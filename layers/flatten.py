@@ -1,6 +1,4 @@
-import numpy as np
-
-
+import cupy as cp
 class Flatten:
     def __init__(self):
 
