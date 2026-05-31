@@ -1,26 +1,13 @@
-import numpy as np
-
+import cupy as cp
+from cupy.lib.stride_tricks import as_strided
 
 class MaxPool2D:
 
-    def __init__(
-        self,
-        kernel_size=2,
-        stride=2
-    ):
-
+    def __init__(self, kernel_size=2, stride=2):
         self.kernel_size = kernel_size
         self.stride = stride
 
-    # =========================================
-    # Forward
-    # =========================================
-
     def forward(self, x):
-        """
-        x shape:
-            (B, C, H, W)
-        """
 
         self.x = x
 
@@ -32,103 +19,79 @@ class MaxPool2D:
         out_h = (H - K) // S + 1
         out_w = (W - K) // S + 1
 
-        out = np.zeros(
-            (B, C, out_h, out_w)
+        shape = (
+            B,
+            C,
+            out_h,
+            out_w,
+            K,
+            K
         )
 
-        # store max positions
-        self.max_indices = {}
+        strides = (
+            x.strides[0],
+            x.strides[1],
+            x.strides[2] * S,
+            x.strides[3] * S,
+            x.strides[2],
+            x.strides[3]
+        )
 
-        for b in range(B):
+        windows = as_strided(
+            x,
+            shape=shape,
+            strides=strides
+        )
 
-            for c in range(C):
+        # save for backward
+        self.windows = windows
 
-                for i in range(out_h):
+        out = cp.max(
+            windows,
+            axis=(4, 5)
+        )
 
-                    for j in range(out_w):
-
-                        h_start = i * S
-                        h_end = h_start + K
-
-                        w_start = j * S
-                        w_end = w_start + K
-
-                        window = x[
-                            b,
-                            c,
-                            h_start:h_end,
-                            w_start:w_end
-                        ]
-
-                        max_val = np.max(window)
-
-                        out[b, c, i, j] = max_val
-
-                        # ---------------------------------
-                        # store max index for backward
-                        # ---------------------------------
-
-                        max_pos = np.unravel_index(
-                            np.argmax(window),
-                            window.shape
-                        )
-
-                        self.max_indices[
-                            (b, c, i, j)
-                        ] = (
-                            h_start + max_pos[0],
-                            w_start + max_pos[1]
-                        )
+        self.argmax = cp.argmax(
+            windows.reshape(
+                B, C, out_h, out_w, -1
+            ),
+            axis=-1
+        )
 
         return out
-
-    # =========================================
-    # Backward
-    # =========================================
-
     def backward(self, grad):
-        """
-        grad shape:
-            (B, C, out_h, out_w)
-        """
 
         B, C, H, W = self.x.shape
 
-        dx = np.zeros_like(self.x)
+        K = self.kernel_size
+        S = self.stride
 
         out_h = grad.shape[2]
         out_w = grad.shape[3]
 
-        for b in range(B):
+        dx = cp.zeros_like(self.x)
 
-            for c in range(C):
+        r = self.argmax // K
+        c = self.argmax % K
 
-                for i in range(out_h):
+        b_idx = cp.arange(B)[:, None, None, None]
+        ch_idx = cp.arange(C)[None, :, None, None]
 
-                    for j in range(out_w):
+        i_idx = cp.arange(out_h)[None, None, :, None]
+        j_idx = cp.arange(out_w)[None, None, None, :]
 
-                        h_idx, w_idx = self.max_indices[
-                            (b, c, i, j)
-                        ]
+        h_idx = i_idx * S + r
+        w_idx = j_idx * S + c
 
-                        dx[
-                            b,
-                            c,
-                            h_idx,
-                            w_idx
-                        ] += grad[
-                            b,
-                            c,
-                            i,
-                            j
-                        ]
+        cp.add.at(
+            dx,
+            (
+                b_idx,
+                ch_idx,
+                h_idx,
+                w_idx
+            ),
+            grad
+        )
 
         return dx
-
-    # =========================================
-    # Parameters
-    # =========================================
-
-    def parameters(self):
-
-        return []

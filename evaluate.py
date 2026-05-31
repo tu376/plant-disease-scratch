@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as cp
 
 
 def accuracy_score(y_true, y_pred):
@@ -13,7 +13,7 @@ def accuracy_score(y_true, y_pred):
         accuracy: float
     """
 
-    correct = np.sum(y_true == y_pred)
+    correct = cp.sum(y_true == y_pred)
 
     total = len(y_true)
 
@@ -33,7 +33,7 @@ def predict(logits):
             shape (B,)
     """
 
-    return np.argmax(logits, axis=1)
+    return cp.argmax(logits, axis=1)
 
 
 def evaluate_classification(
@@ -68,7 +68,7 @@ def evaluate_classification(
         preds = predict(logits)
 
         # accuracy
-        total_correct += np.sum(
+        total_correct += cp.sum(
             preds == y_batch
         )
 
@@ -148,9 +148,9 @@ def confusion_matrix(
         predicted labels
     """
 
-    cm = np.zeros(
+    cm = cp.zeros(
         (num_classes, num_classes),
-        dtype=np.int32
+        dtype=cp.int32
     )
 
     for t, p in zip(y_true, y_pred):

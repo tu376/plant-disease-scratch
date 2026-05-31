@@ -1,27 +1,50 @@
 import argparse
-import numpy as np
+import cupy as cp
+
+from evaluate import (
+    accuracy_score,
+    evaluate_classification
+)
 
 from model.cnn import CNN
+from model.xgboost import XGBoostModel
+from model.svm import SVMModel
+
+from utils.optimizer import (
+    Adam,
+    SGD,
+    SGDMomentum
+)
 
 from utils.loss import (
     CrossEntropyLoss,
     FocalLoss
 )
 
-from utils.optimizer import Adam
-
-from evaluate import evaluate_classification
-
+from utils.data_loader import (
+    create_dataloaders,
+    dataloader_to_cupy
+)
 
 # =====================================================
-# Argument Parser
+# Paths
+# =====================================================
+
+TRAIN_DIR = r"E:\GitHub\plant-disease-scratch\data\train"
+VAL_DIR = r"E:\GitHub\plant-disease-scratch\data\val"
+
+# =====================================================
+# Args
 # =====================================================
 
 parser = argparse.ArgumentParser()
 
-# -----------------------------------------
-# training hyperparameters
-# -----------------------------------------
+parser.add_argument(
+    "--model",
+    type=str,
+    default="cnn",
+    choices=["cnn", "xgboost"]
+)
 
 parser.add_argument(
     "--epochs",
@@ -32,7 +55,7 @@ parser.add_argument(
 parser.add_argument(
     "--batch_size",
     type=int,
-    default=32
+    default=4
 )
 
 parser.add_argument(
@@ -40,10 +63,6 @@ parser.add_argument(
     type=float,
     default=1e-3
 )
-
-# -----------------------------------------
-# loss selection
-# -----------------------------------------
 
 parser.add_argument(
     "--loss",
@@ -67,200 +86,348 @@ parser.add_argument(
     default=1.0
 )
 
+parser.add_argument(
+    "--optimizer",
+    type=str,
+    default="adam",
+    choices=[
+        "adam",
+        "sgd",
+        "sgdmomentum"
+    ]
+)
+
 args = parser.parse_args()
 
+# =====================================================
+# Data
+# =====================================================
+
+print("Using device: CUDA (CuPy)")
+
+train_loader, val_loader, classes = create_dataloaders(
+    train_dir=TRAIN_DIR,
+    val_dir=VAL_DIR,
+    batch_size=args.batch_size,
+    image_size=64
+)
+
+num_classes = len(classes)
+
+print("Classes:", classes)
 
 # =====================================================
-# Create Loss Function
+# Helper
 # =====================================================
 
-if args.loss == "crossentropy":
+def extract_features(cnn, loader):
 
-    criterion = CrossEntropyLoss()
+    X, y = dataloader_to_cupy(loader)
+
+    features = cnn.extract_features(X)
+
+    return features, y
+
+# =====================================================
+# CNN
+# =====================================================
+
+if args.model == "cnn":
+
+    model = CNN(
+        num_classes=num_classes
+    )
+
+    # -----------------------------
+    # Loss
+    # -----------------------------
+
+    if args.loss == "crossentropy":
+
+        criterion = CrossEntropyLoss()
+
+    else:
+
+        criterion = FocalLoss(
+            gamma=args.gamma,
+            alpha=args.alpha
+        )
+
+    # -----------------------------
+    # Optimizer
+    # -----------------------------
+
+    if args.optimizer == "adam":
+
+        optimizer = Adam(
+            model.parameters(),
+            lr=args.lr
+        )
+
+    elif args.optimizer == "sgd":
+
+        optimizer = SGD(
+            model.parameters(),
+            lr=args.lr
+        )
+
+    else:
+
+        optimizer = SGDMomentum(
+            model.parameters(),
+            lr=args.lr
+        )
+
+    # -----------------------------
+    # Validation set
+    # -----------------------------
+
+    X_val, y_val = dataloader_to_cupy(
+        val_loader
+    )
+
+    # -----------------------------
+    # Training loop
+    # -----------------------------
+
+    for epoch in range(args.epochs):
+
+        total_loss = 0.0
+        total_correct = 0
+        total_samples = 0
+
+        for images, labels in train_loader:
+
+            X_batch = cp.asarray(images)
+            y_batch = cp.asarray(labels)
+
+            # forward
+
+            logits = model.forward(
+                X_batch
+            )
+
+            loss = criterion.forward(
+                logits,
+                y_batch
+            )
+
+            # accuracy
+
+            preds = cp.argmax(
+                logits,
+                axis=1
+            )
+
+            total_correct += int(
+                cp.sum(
+                    preds == y_batch
+                ).item()
+            )
+
+            total_samples += X_batch.shape[0]
+
+            total_loss += (
+                float(loss.item())
+                * X_batch.shape[0]
+            )
+
+            # backward
+
+            grad = criterion.backward()
+
+            model.backward(
+                grad
+            )
+
+            # update
+
+            optimizer.step()
+
+            optimizer.zero_grad()
+
+        train_loss = (
+            total_loss / total_samples
+        )
+
+        train_acc = (
+            total_correct / total_samples
+        )
+
+        # validation
+
+        val_loss, val_acc = (
+            evaluate_classification(
+                model,
+                X_val,
+                y_val,
+                criterion
+            )
+        )
+
+        val_loss = float(
+            val_loss.item()
+        )
+
+        val_acc = float(
+            val_acc.item()
+        )
+
+        print(
+            f"Epoch [{epoch+1}/{args.epochs}] "
+            f"| Train Loss: {train_loss:.4f} "
+            f"| Train Acc: {train_acc:.4f} "
+            f"| Val Loss: {val_loss:.4f} "
+            f"| Val Acc: {val_acc:.4f}"
+        )
+        cp.savez(
+            "cnn_weights.npz",
+
+            conv1_w=model.conv1.weight,
+            conv1_b=model.conv1.bias,
+
+            conv2_w=model.conv2.weight,
+            conv2_b=model.conv2.bias,
+
+            fc1_w=model.fc1.weight,
+            fc1_b=model.fc1.bias,
+
+            fc2_w=model.fc2.weight,
+            fc2_b=model.fc2.bias,
+        )
+
+# =====================================================
+# XGBoost
+# =====================================================
 
 else:
 
-    criterion = FocalLoss(
-        gamma=args.gamma,
-        alpha=args.alpha
+    cnn = CNN(
+        num_classes=num_classes
     )
 
-print(f"Using loss: {args.loss}")
+    weights = cp.load(
+            "cnn_weights.npz"
+    )
+    cnn.conv1.weight[:] = weights["conv1_w"]
+    cnn.conv1.bias[:]   = weights["conv1_b"]
 
+    cnn.conv2.weight[:] = weights["conv2_w"]
+    cnn.conv2.bias[:]   = weights["conv2_b"]
 
-# =====================================================
-# Mini Batch Generator
-# =====================================================
+    cnn.fc1.weight[:] = weights["fc1_w"]
+    cnn.fc1.bias[:]   = weights["fc1_b"]
 
-def create_batches(
-    X,
-    y,
-    batch_size
-):
-
-    num_samples = X.shape[0]
-
-    indices = np.arange(num_samples)
-
-    np.random.shuffle(indices)
-
-    X = X[indices]
-    y = y[indices]
-
-    for i in range(
-        0,
-        num_samples,
-        batch_size
-    ):
-
-        yield (
-            X[i:i + batch_size],
-            y[i:i + batch_size]
-        )
-
-
-# =====================================================
-# Train One Epoch
-# =====================================================
-
-def train_one_epoch(
-    model,
-    optimizer,
-    criterion,
-    X_train,
-    y_train,
-    batch_size
-):
-
-    total_loss = 0
-    total_correct = 0
-    total_samples = 0
-
-    for X_batch, y_batch in create_batches(
-        X_train,
-        y_train,
-        batch_size
-    ):
-
-        # ---------------------------------
-        # forward
-        # ---------------------------------
-
-        logits = model.forward(X_batch)
-
-        # ---------------------------------
-        # loss
-        # ---------------------------------
-
-        loss = criterion.forward(
-            logits,
-            y_batch
-        )
-
-        total_loss += (
-            loss * len(X_batch)
-        )
-
-        # ---------------------------------
-        # accuracy
-        # ---------------------------------
-
-        preds = np.argmax(
-            logits,
-            axis=1
-        )
-
-        total_correct += np.sum(
-            preds == y_batch
-        )
-
-        total_samples += len(X_batch)
-
-        # ---------------------------------
-        # backward
-        # ---------------------------------
-
-        grad = criterion.backward()
-
-        model.backward(grad)
-
-        # ---------------------------------
-        # update
-        # ---------------------------------
-
-        optimizer.step()
-
-        optimizer.zero_grad()
-
-    avg_loss = (
-        total_loss / total_samples
+    cnn.fc2.weight[:] = weights["fc2_w"]
+    cnn.fc2.bias[:]   = weights["fc2_b"]
+    print(
+        "Extracting train features..."
     )
 
-    accuracy = (
-        total_correct / total_samples
+    X_train, y_train = extract_features(
+        cnn,
+        train_loader
     )
 
-    return avg_loss, accuracy
+    print(
+        "Extracting validation features..."
+    )
 
+    X_val, y_val = extract_features(
+        cnn,
+        val_loader
+    )
 
-# =====================================================
-# Full Training Loop
-# =====================================================
+    # -----------------------------
+    # CuPy -> NumPy
+    # -----------------------------
 
-def train(
-    model,
-    optimizer,
-    criterion,
-    X_train,
-    y_train,
-    X_val=None,
-    y_val=None,
-    epochs=10,
-    batch_size=32
-):
+    X_train = cp.asnumpy(
+        X_train
+    )
 
-    for epoch in range(epochs):
+    y_train = cp.asnumpy(
+        y_train
+    )
 
-        train_loss, train_acc = train_one_epoch(
-            model,
-            optimizer,
-            criterion,
+    X_val = cp.asnumpy(
+        X_val
+    )
+
+    y_val = cp.asnumpy(
+        y_val
+    )
+
+    print(
+        "Train:",
+        X_train.shape,
+        y_train.shape
+    )
+
+    print(
+        "Val:",
+        X_val.shape,
+        y_val.shape
+    )
+    if args.model == "svm":
+
+        svm = SVMModel(
+            num_classes=num_classes,
+            C=1.0,
+            kernel="rbf",
+            gamma="scale"
+        )
+
+        print(
+            "Training SVM..."
+        )
+
+        svm.fit(
             X_train,
-            y_train,
-            batch_size
+            y_train
         )
 
-        # ---------------------------------
-        # validation
-        # ---------------------------------
+        pred = svm.predict(
+            X_val
+        )
 
-        if X_val is not None:
+        acc = accuracy_score(
+            y_val,
+            pred
+        )
 
-            val_loss, val_acc = (
-                evaluate_classification(
-                    model,
-                    X_val,
-                    y_val,
-                    criterion,
-                    batch_size
-                )
-            )
+        print(
+            f"Validation Accuracy: {acc:.4f}"
+        )
+    elif args.model == "xgboost":
+    # -----------------------------
+    # XGBoost
+    # -----------------------------
 
-            print(
-                f"Epoch [{epoch+1}/{epochs}] "
-                f"| Train Loss: {train_loss:.4f} "
-                f"| Train Acc: {train_acc:.4f} "
-                f"| Val Loss: {val_loss:.4f} "
-                f"| Val Acc: {val_acc:.4f}"
-            )
+        xgb = XGBoostModel(
+            num_classes=num_classes,
+            n_estimators=300,
+            max_depth=6,
+            learning_rate=0.05
+        )
 
-        else:
+        print(
+            "Training XGBoost..."
+        )
 
-            print(
-                f"Epoch [{epoch+1}/{epochs}] "
-                f"| Train Loss: {train_loss:.4f} "
-                f"| Train Acc: {train_acc:.4f}"
-            )
+        xgb.fit(
+            X_train,
+            y_train
+        )
 
+        pred = xgb.predict(
+            X_val
+        )
 
+        acc = (
+            pred == y_val
+        ).mean()
 
+        print(
+            f"Validation Accuracy: {acc:.4f}"
+        )

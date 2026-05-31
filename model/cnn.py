@@ -1,10 +1,8 @@
-import numpy as np
-
-from layers.conv2d_cpu import Conv2D
+from layers.conv2d import Conv2D
 from layers.maxpool2d import MaxPool2D
 from layers.linear import Linear
 from layers.activation import ReLU
-
+import cupy as cp
 
 class CNN:
 
@@ -79,7 +77,7 @@ class CNN:
     # =========================================
 
     def forward(self, x):
-
+        x = cp.asarray(x)
         # -------------------------------------
         # Conv Block 1
         # -------------------------------------
@@ -121,6 +119,28 @@ class CNN:
         logits = self.fc2.forward(x)
 
         return logits
+    def extract_features(self, x):
+        x = cp.asarray(x)
+
+        # Conv Block 1
+        x = self.conv1.forward(x)
+        x = self.relu1.forward(x)
+        x = self.pool1.forward(x)
+
+        # Conv Block 2
+        x = self.conv2.forward(x)
+        x = self.relu2.forward(x)
+        x = self.pool2.forward(x)
+
+        # Flatten
+        B = x.shape[0]
+        x = x.reshape(B, -1)
+
+        # IMPORTANT: stop BEFORE classifier
+        x = self.fc1.forward(x)
+        x = self.relu3.forward(x)
+
+        return x  # <-- THIS is your feature vector (128-dim)
 
     # =========================================
     # Backward
@@ -172,19 +192,9 @@ class CNN:
 
     def parameters(self):
 
-        params = []
-
-        layers = [
+        return [
             self.conv1,
             self.conv2,
             self.fc1,
             self.fc2
         ]
-
-        for layer in layers:
-
-            params.extend(
-                layer.parameters()
-            )
-
-        return params
