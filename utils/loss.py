@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 import cupy as cp
 
 # =====================================================
@@ -194,43 +193,3 @@ class FocalLoss:
         grad *= focal_weight[:, None]
         grad /= self.batch_size
         return grad
-
-=======
-"""
-TẠM THỜI
-"""
-
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from backend import cp
-
-
-class SoftmaxCrossEntropyLoss:
-    def __init__(self):
-        self._probs = None
-        self._y     = None
-        self._N     = None
-
-    def forward(self, logits, y_true):
-        N = logits.shape[0]
-        self._N = N
-        self._y = y_true
-
-        shifted = logits - cp.max(logits, axis=1, keepdims=True)
-        exp_val = cp.exp(shifted)
-        probs   = exp_val / cp.sum(exp_val, axis=1, keepdims=True)
-        self._probs = probs
-
-        correct_log_probs = -cp.log(probs[cp.arange(N), y_true] + 1e-9)
-        loss = float(cp.mean(correct_log_probs))
-        return loss
-
-    def backward(self):
-        grad = self._probs.copy()
-        grad[cp.arange(self._N), self._y] -= 1.0
-        grad /= self._N
-        return grad
-
-    def get_probs(self):
-        return self._probs
->>>>>>> Stashed changes
