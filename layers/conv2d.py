@@ -31,11 +31,11 @@ class Conv2D:
                 in_channels,
                 KH,
                 KW
-            ).astype(cp.float32) * scale
+            ).astype(cp.float16) * scale
         )
 
         self.bias = (
-            cp.zeros(out_channels, dtype=cp.float32)
+            cp.zeros(out_channels, dtype=cp.float16)
             if bias else None
         )
 
