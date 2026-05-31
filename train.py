@@ -1,6 +1,6 @@
 import argparse
 import cupy as cp
-
+import numpy as np
 from evaluate import (
     accuracy_score,
     evaluate_classification
@@ -9,6 +9,7 @@ from evaluate import (
 from model.cnn import CNN
 from model.xgboost import XGBoostModel
 from model.svm import SVMModel
+from model.random_forest import RandomForestModel
 
 from utils.optimizer import (
     Adam,
@@ -43,7 +44,7 @@ parser.add_argument(
     "--model",
     type=str,
     default="cnn",
-    choices=["cnn", "xgboost"]
+    choices=["cnn", "xgboost", "random_forest"]
 )
 
 parser.add_argument(
@@ -120,13 +121,28 @@ print("Classes:", classes)
 # Helper
 # =====================================================
 
-def extract_features(cnn, loader):
+def extract_features(model, dataloader):
+    all_features = []
+    all_labels = []
 
-    X, y = dataloader_to_cupy(loader)
+    for X_batch, y_batch in dataloader:
+        # 1. Forward pass on GPU
+        # (Assuming your CNN returns the flattened features before the final classification layer)
+        features = model.forward(X_batch)
 
-    features = cnn.extract_features(X)
+        # 2. MOVE TO CPU IMMEDIATELY
+        # Do not keep appending CuPy arrays to a list!
+        features_cpu = cp.asnumpy(features)
+        y_batch_cpu = cp.asnumpy(y_batch)
 
-    return features, y
+        all_features.append(features_cpu)
+        all_labels.append(y_batch_cpu)
+
+        # Optional: Free GPU memory to be safe
+        cp.get_default_memory_pool().free_all_blocks()
+
+    # 3. Stack into single NumPy arrays
+    return np.vstack(all_features), np.hstack(all_labels)
 
 # =====================================================
 # CNN
@@ -431,3 +447,19 @@ else:
         print(
             f"Validation Accuracy: {acc:.4f}"
         )
+    elif args.model == "random_forest":
+        rf = RandomForestModel(
+            n_estimators=300,
+            max_depth=None,
+            max_features="sqrt",
+            random_state=42,
+            n_jobs=-1
+        )
+
+        print("Training Random Forest...")
+        rf.fit(X_train, y_train)
+
+        pred = rf.predict(X_val)
+        acc = rf.score(X_val, y_val)
+
+        print(f"Validation Accuracy: {acc:.4f}")
