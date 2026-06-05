@@ -1,5 +1,5 @@
 import cupy as cp
-
+import numpy as np
 
 def accuracy_score(y_true, y_pred):
     """
@@ -32,8 +32,10 @@ def predict(logits):
         predicted labels:
             shape (B,)
     """
-
-    return cp.argmax(logits, axis=1)
+    # Chuyển sang CPU để tính toán argmax bằng NumPy nhằm né lỗi biên dịch của CuPy
+    import numpy as np
+    preds_cpu = np.argmax(cp.asnumpy(logits), axis=1)
+    return cp.array(preds_cpu) # Đẩy ngược kết quả lại thành mảng CuPy
 
 
 def evaluate_classification(
@@ -67,10 +69,11 @@ def evaluate_classification(
         # predictions
         preds = predict(logits)
 
-        # accuracy
-        total_correct += cp.sum(
-            preds == y_batch
-        )
+        # --- SỬA LÁCH LỖI CP.SUM ---
+        # Chuyển cả preds và y_batch sang NumPy để tính tổng số lượng đúng
+        preds_cpu = cp.asnumpy(preds)
+        y_batch_cpu = cp.asnumpy(y_batch)
+        total_correct += int(np.sum(preds_cpu == y_batch_cpu))
 
         # loss
         if criterion is not None:
@@ -80,9 +83,8 @@ def evaluate_classification(
                 y_batch
             )
 
-            total_loss += (
-                loss * len(X_batch)
-            )
+            # Ép kiểu loss về float nguyên bản để tránh tích tụ mảng CuPy gây tràn bộ nhớ
+            total_loss += float(loss.item()) * len(X_batch)
 
     accuracy = total_correct / num_samples
 
@@ -121,9 +123,7 @@ def evaluate_regression(
             y_batch
         )
 
-        total_loss += (
-            loss * len(X_batch)
-        )
+        total_loss += float(loss.item()) * len(X_batch)
 
     avg_loss = total_loss / num_samples
 
@@ -147,14 +147,17 @@ def confusion_matrix(
     cols:
         predicted labels
     """
+    # Vì Confusion Matrix thường dùng ở cuối quá trình test trên CPU để vẽ biểu đồ (seaborn/matplotlib)
+    # Nên chúng ta chuyển hẳn sang NumPy để chạy vòng lặp zip() nhanh hơn rất nhiều so với lặp trên GPU
+    y_true_cpu = cp.asnumpy(y_true)
+    y_pred_cpu = cp.asnumpy(y_pred)
 
-    cm = cp.zeros(
+    cm = np.zeros(
         (num_classes, num_classes),
-        dtype=cp.int32
+        dtype=np.int32
     )
 
-    for t, p in zip(y_true, y_pred):
-
+    for t, p in zip(y_true_cpu, y_pred_cpu):
         cm[t, p] += 1
 
-    return cm
+    return cp.array(cm) # Chuyển lại về mảng CuPy nếu code bên ngoài yêu cầu

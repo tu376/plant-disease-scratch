@@ -1,4 +1,5 @@
 import cupy as cp
+import numpy as np  # Thêm numpy để xử lý lách lỗi biên dịch NVRTC
 from cupy.lib.stride_tricks import as_strided
 
 class MaxPool2D:
@@ -46,19 +47,29 @@ class MaxPool2D:
         # save for backward
         self.windows = windows
 
-        out = cp.max(
-            windows,
+        # --- ĐOẠN SỬA LÁCH LỖI NVRTC CỦA CUPY ---
+        # Chuyển dữ liệu sang CPU (NumPy) để tính Max và ArgMax một cách an toàn
+        windows_cpu = cp.asnumpy(windows)
+
+        out_cpu = np.max(
+            windows_cpu,
             axis=(4, 5)
         )
 
-        self.argmax = cp.argmax(
-            windows.reshape(
+        argmax_cpu = np.argmax(
+            windows_cpu.reshape(
                 B, C, out_h, out_w, -1
             ),
             axis=-1
         )
 
+        # Đẩy kết quả ngược lại GPU để các tầng sau chạy tiếp tục
+        out = cp.array(out_cpu)
+        self.argmax = cp.array(argmax_cpu)
+        # ----------------------------------------
+
         return out
+
     def backward(self, grad):
 
         B, C, H, W = self.x.shape

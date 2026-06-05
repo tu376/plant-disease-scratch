@@ -1,3 +1,6 @@
+import os
+os.environ["NVIDIA_TF32_OVERRIDE"] = "0" # Tắt chế độ tính toán TF32 nếu có xung đột
+
 import argparse
 import cupy as cp
 import numpy as np
@@ -31,8 +34,8 @@ from utils.data_loader import (
 # Paths
 # =====================================================
 
-TRAIN_DIR = r"E:\GitHub\plant-disease-scratch\data\train"
-VAL_DIR = r"E:\GitHub\plant-disease-scratch\data\val"
+TRAIN_DIR = r"C:/Users/NCPC/Pictures/plant-disease-scratch/data/train"
+VAL_DIR = r"C:/Users/NCPC/Pictures/plant-disease-scratch/data/val"
 
 # =====================================================
 # Args
@@ -56,7 +59,7 @@ parser.add_argument(
 parser.add_argument(
     "--batch_size",
     type=int,
-    default=4
+    default=2
 )
 
 parser.add_argument(
@@ -229,17 +232,19 @@ if args.model == "cnn":
             )
 
             # accuracy
-
+            '''
             preds = cp.argmax(
                 logits,
                 axis=1
             )
+            '''
+            # Chuyển logits sang CPU, dùng numpy.argmax để không bị lỗi biên dịch CUDA
+            # 1. Chuyển cả logits và y_batch (labels gốc) sang CPU để tính toán
+            preds_cpu = np.argmax(cp.asnumpy(logits), axis=1) 
+            y_batch_cpu = cp.asnumpy(y_batch)
 
-            total_correct += int(
-                cp.sum(
-                    preds == y_batch
-                ).item()
-            )
+            # 2. Tính tổng số lượng mẫu đúng trực tiếp bằng NumPy (CPU)
+            total_correct += int(np.sum(preds_cpu == y_batch_cpu))
 
             total_samples += X_batch.shape[0]
 
@@ -281,13 +286,10 @@ if args.model == "cnn":
             )
         )
 
-        val_loss = float(
-            val_loss.item()
-        )
-
-        val_acc = float(
-            val_acc.item()
-        )
+        # Vì val_loss và val_acc bây giờ đã là kiểu float/số thuần từ evaluate.py trả về,
+        # Bạn chỉ cần gán trực tiếp hoặc ép kiểu float đơn giản như thế này:
+        val_loss = float(val_loss)
+        val_acc = float(val_acc)
 
         print(
             f"Epoch [{epoch+1}/{args.epochs}] "
