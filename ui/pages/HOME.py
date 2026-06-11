@@ -115,7 +115,7 @@ def render():
         {
             "emoji": "👨‍💻",
             "name":  "Nguyễn Gia Vinh",
-            "id":    "MSSV: 2113001",
+            "id":    "Student ID: 202416766",
             "role":  "Team Lead · CNN Dev",
             "tasks": [
                 "Xây dựng kiến trúc CNN từ đầu (Conv2D, MaxPool2D, Linear, ReLU)",
@@ -126,18 +126,16 @@ def render():
         {
             "emoji": "👩‍💻",
             "name":  "Chu Văn An",
-            "id":    "MSSV: 2113002",
+            "id":    "Student ID: 20235582",
             "role":  "Data Engineer",
             "tasks": [
-                "Chuẩn bị và tiền xử lý dữ liệu PlantVillage",
-                "Xây dựng DataLoader và LeafDataset",
-                "Data augmentation và normalization",
+                "UI/UX implementation with Streamlit",
             ],
         },
         {
             "emoji": "🧑‍🔬",
             "name":  "Đặng Anh Tú",
-            "id":    "MSSV: 2113003",
+            "id":    "Student ID: 202400118",
             "role":  "ML Engineer",
             "tasks": [
                 "Implement optimizer: Adam, SGD, SGD Momentum",
@@ -148,7 +146,7 @@ def render():
         {
             "emoji": "👩‍🎨",
             "name":  "Nguyễn Thế Phương",
-            "id":    "MSSV: 2113004",
+            "id":    "Student ID: 202416735",
             "role":  "Evaluation · UI",
             "tasks": [
                 "Đánh giá mô hình: confusion matrix, accuracy, F1",
@@ -159,7 +157,7 @@ def render():
         {
             "emoji": "👨‍💻",
             "name":  "Hà Tùng Anh",
-            "id":    "MSSV: 2113001",
+            "id":    "Student ID: 202416771",
             "role":  "Team Lead · CNN Dev",
             "tasks": [
                 "Xây dựng kiến trúc CNN từ đầu (Conv2D, MaxPool2D, Linear, ReLU)",
