@@ -15,27 +15,45 @@ class Linear:
         """Returns the learnable weights and biases of this layer."""
         return [self.weight, self.bias]
     def forward(self, x):
-        """
-        x shape: (batch_size, in_features)
-        """
         self.x = x
-        out = x @ self.weight + self.bias
+        
+        # --- LÁCH LỖI CUBLAS CHO CHIỀU FORWARD TẦNG LINEAR ---
+        try:
+            out = x @ self.weight
+        except Exception as e:
+            import numpy as np
+            x_cpu = cp.asnumpy(x)
+            w_cpu = cp.asnumpy(self.weight)
+            out = cp.array(x_cpu @ w_cpu)
+            
+        if self.bias is not None:
+            out += self.bias
+            
         return out
 
     def backward(self, dout):
-        """
-        dout shape: (batch_size, out_features)
-        """
-
-        batch_size = self.x.shape[0]
-
-        # gradients
-        self.dw = self.x.T @ dout / batch_size
-        self.db = cp.sum(dout, axis=0, keepdims=True) / batch_size
-
-        # gradient wrt input
-        dx = dout @ self.weight.T
-
+        batch_size = dout.shape[0]
+        
+        # --- LÁCH LỖI CUBLAS CHO self.dw ---
+        try:
+            self.dw = self.x.T @ dout / batch_size
+        except Exception as e:
+            import numpy as np
+            x_cpu = cp.asnumpy(self.x)
+            dout_cpu = cp.asnumpy(dout)
+            self.dw = cp.array(x_cpu.T @ dout_cpu / batch_size)
+            
+        self.db = cp.sum(dout, axis=0) / batch_size
+        
+        # --- LÁCH LỖI CUBLAS CHO dx ---
+        try:
+            dx = dout @ self.weight.T
+        except Exception as e:
+            import numpy as np
+            dout_cpu = cp.asnumpy(dout)
+            w_cpu = cp.asnumpy(self.weight)
+            dx = cp.array(dout_cpu @ w_cpu.T)
+            
         return dx
 
     def step(self, lr):

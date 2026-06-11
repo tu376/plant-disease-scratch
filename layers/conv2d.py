@@ -24,7 +24,7 @@ class Conv2D:
         KH, KW = kernel_size
 
         scale = cp.sqrt(2.0 / (in_channels * KH * KW))
-
+        '''
         self.weight = (
             cp.random.randn(
                 out_channels,
@@ -38,7 +38,21 @@ class Conv2D:
             cp.zeros(out_channels, dtype=cp.float16)
             if bias else None
         )
+        '''
+        self.weight = (
+            cp.random.randn(
+                out_channels,
+                in_channels,
+                KH,
+                KW
+            ).astype(cp.float32) * scale  # <-- Đã sửa thành float32
+        )
 
+        # ĐỔI TỪ cp.float16 THÀNH cp.float32 TẠI ĐÂY
+        self.bias = (
+            cp.zeros(out_channels, dtype=cp.float32)  # <-- Đã sửa thành float32
+            if bias else None
+        )
         self.dw = None
         self.db = None
 
@@ -186,7 +200,24 @@ class Conv2D:
         cols = cp.ascontiguousarray(cols)
 
         w_col = cp.ascontiguousarray(w_col)
-        out = cols @ w_col.T
+        
+        # THÊM DÒNG NÀY ĐỂ DỌN BỘ NHỚ ĐỆM GPU TRƯỚC KHI NHÂN MA TRẬN
+        cp.get_default_memory_pool().free_bytes()
+        
+        # --- ĐOẠN SỬA LÁCH LỖI CUBLAS ---
+        try:
+            out = cols @ w_col.T
+        except Exception as e:
+            # Nếu GPU lỗi cuBLAS, chuyển sang NumPy (CPU) để nhân rồi đẩy ngược lại Cupy
+            import numpy as np
+            cols_cpu = cp.asnumpy(cols)
+            w_col_cpu = cp.asnumpy(w_col)
+            out_cpu = cols_cpu @ w_col_cpu.T
+            out = cp.array(out_cpu)
+        # ---------------------------------
+
+        if self.bias is not None:
+            out += self.bias
 
         if self.bias is not None:
             out += self.bias
@@ -240,20 +271,34 @@ class Conv2D:
             )
 
         # dw
+        # dw
         dout_reshaped = cp.ascontiguousarray(
             dout_reshaped
         )
-
         cols = cp.ascontiguousarray(cols)
-        dw = dout_reshaped.T @ cols
+
+        # --- LÁCH LỖI CUBLAS KHI TÍNH DW ---
+        try:
+            dw = dout_reshaped.T @ cols
+        except Exception as e:
+            import numpy as np
+            dout_res_cpu = cp.asnumpy(dout_reshaped)
+            cols_cpu = cp.asnumpy(cols)
+            dw = cp.array(dout_res_cpu.T @ cols_cpu)
 
         self.dw = dw.reshape(
             self.weight.shape
         )
 
         # dx
-
-        dcols = dout_reshaped @ w_col
+        # --- LÁCH LỖI CUBLAS KHI TÍNH DCOLS ---
+        try:
+            dcols = dout_reshaped @ w_col
+        except Exception as e:
+            import numpy as np
+            dout_res_cpu = cp.asnumpy(dout_reshaped)
+            w_col_cpu = cp.asnumpy(w_col)
+            dcols = cp.array(dout_res_cpu @ w_col_cpu)
 
         dx = self.col2im(
             dcols,

@@ -1,160 +1,38 @@
 import cupy as cp
-
-
-def accuracy_score(y_true, y_pred):
-    """
-    Classification accuracy
-
-    Input:
-        y_true: (N,)
-        y_pred: (N,)
-
-    Output:
-        accuracy: float
-    """
-
-    correct = cp.sum(y_true == y_pred)
-
-    total = len(y_true)
-
-    return correct / total
-
-
-def predict(logits):
-    """
-    Convert logits to predicted class
-
-    Input:
-        logits:
-            shape (B, num_classes)
-
-    Output:
-        predicted labels:
-            shape (B,)
-    """
-
-    return cp.argmax(logits, axis=1)
-
-
-def evaluate_classification(
-    model,
-    X,
-    y,
-    criterion=None,
-    batch_size=32
-):
-    """
-    Evaluate classification model
-
-    Returns:
-        average loss
-        accuracy
-    """
-
-    num_samples = X.shape[0]
+def evaluate(model, val_loader, criterion):
 
     total_loss = 0
     total_correct = 0
+    total_samples = 0
 
-    for i in range(0, num_samples, batch_size):
+    for images, labels in val_loader:
 
-        X_batch = X[i:i + batch_size]
-        y_batch = y[i:i + batch_size]
+        X_batch = cp.asarray(images)
+        y_batch = cp.asarray(labels)
 
-        # forward
         logits = model.forward(X_batch)
 
-        # predictions
-        preds = predict(logits)
-
-        # accuracy
-        total_correct += cp.sum(
-            preds == y_batch
-        )
-
-        # loss
-        if criterion is not None:
-
-            loss = criterion.forward(
-                logits,
-                y_batch
-            )
-
-            total_loss += (
-                loss * len(X_batch)
-            )
-
-    accuracy = total_correct / num_samples
-
-    if criterion is not None:
-        avg_loss = total_loss / num_samples
-    else:
-        avg_loss = None
-
-    return avg_loss, accuracy
-
-
-def evaluate_regression(
-    model,
-    X,
-    y,
-    criterion,
-    batch_size=32
-):
-    """
-    Evaluate regression model
-    """
-
-    num_samples = X.shape[0]
-
-    total_loss = 0
-
-    for i in range(0, num_samples, batch_size):
-
-        X_batch = X[i:i + batch_size]
-        y_batch = y[i:i + batch_size]
-
-        pred = model.forward(X_batch)
-
         loss = criterion.forward(
-            pred,
+            logits,
             y_batch
         )
 
-        total_loss += (
-            loss * len(X_batch)
+        preds = cp.argmax(
+            logits,
+            axis=1
         )
 
-    avg_loss = total_loss / num_samples
+        total_correct += int(
+            cp.sum(preds == y_batch).item()
+        )
 
-    return avg_loss
+        total_samples += X_batch.shape[0]
 
+        total_loss += (
+            float(loss.item()) * len(X_batch)
+        )
 
-def confusion_matrix(
-    y_true,
-    y_pred,
-    num_classes
-):
-    """
-    Build confusion matrix
+    val_loss = total_loss / total_samples
+    val_acc = total_correct / total_samples
 
-    Output:
-        shape (num_classes, num_classes)
-
-    rows:
-        true labels
-
-    cols:
-        predicted labels
-    """
-
-    cm = cp.zeros(
-        (num_classes, num_classes),
-        dtype=cp.int32
-    )
-
-    for t, p in zip(y_true, y_pred):
-
-        cm[t, p] += 1
-
-    return cm
+    return val_loss, val_acc

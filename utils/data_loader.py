@@ -5,7 +5,6 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import cupy as cp
 
-
 class ImageClassificationDataset(Dataset):
 
     def __init__(
@@ -93,6 +92,7 @@ class ImageClassificationDataset(Dataset):
 def create_dataloaders(
     train_dir,
     val_dir,
+    test_dir,
     batch_size=32,
     image_size=64,
     num_workers=0
@@ -107,10 +107,18 @@ def create_dataloaders(
         transforms.Resize((image_size, image_size)),
         transforms.ToTensor(),
     ])
+    test_transform = transforms.Compose([
+        transforms.Resize((image_size, image_size)),
+        transforms.ToTensor(),
+    ])
 
     train_dataset = ImageClassificationDataset(
         root_dir=train_dir,
         transform=train_transform
+    )
+    test_dataset = ImageClassificationDataset(
+        root_dir=test_dir,
+        transform=test_transform
     )
 
     val_dataset = ImageClassificationDataset(
@@ -131,10 +139,16 @@ def create_dataloaders(
         shuffle=False,
         num_workers=num_workers
     )
-
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers
+    )
     return (
         train_loader,
         val_loader,
+        test_loader,
         train_dataset.classes
     )
 def dataloader_to_cupy(loader):
