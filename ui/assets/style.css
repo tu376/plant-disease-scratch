@@ -245,6 +245,16 @@ h3 {
     border-color: var(--green-500) !important;
 }
 
+/* ---------- Hide Streamlit auto page-nav (app title + page links) ---------- */
+/* Ẩn tên app "app" ở đầu sidebar */
+[data-testid="stSidebarHeader"],
+[data-testid="stSidebarNavItems"],
+[data-testid="stSidebarNavSeparator"],
+section[data-testid="stSidebar"] > div:first-child > div:first-child > div[data-testid="stVerticalBlock"] > div:first-child [data-testid="stPageLink"],
+div[data-testid="stSidebarNav"] {
+    display: none !important;
+}
+
 /* ---------- Streamlit overrides ---------- */
 [data-testid="metric-container"] {
     background: rgba(16, 185, 129, 0.05) !important;

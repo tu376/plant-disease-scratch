@@ -26,9 +26,9 @@ def render_sidebar():
 
         # Navigation
         nav_items = [
-            ("🏠", "Trang chủ",      "home"),
-            ("🔬", "Dự đoán",        "predict"),
-            ("📊", "Hiệu suất",      "performance"),
+            ("🏠", "Home",      "home"),
+            ("🔬", "Predict",        "predict"),
+            ("📊", "Performance",      "performance"),
         ]
 
         current = st.session_state.get("page", "home")
@@ -55,8 +55,8 @@ def render_sidebar():
             """
             <hr style="border-color:rgba(16,185,129,0.12); margin-bottom:1rem;">
             <div style="font-size:0.7rem; color:#4b5563; text-align:center; line-height:1.6;">
-                🎓 Đồ án môn học · 2025<br>
-                Nhóm 08 · Python &amp; CuPy
+                🎓 Machine Learning Project · Semester: 2025.2<br>
+                Group 17 · Plant Disease Detection using Neural Network
             </div>
             """,
             unsafe_allow_html=True,
