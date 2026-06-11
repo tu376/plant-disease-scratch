@@ -140,7 +140,7 @@ class CNN:
         x = self.fc1.forward(x)
         x = self.relu3.forward(x)
 
-        return x  # <-- THIS is your feature vector (128-dim)
+        return x  
 
     # =========================================
     # Backward
