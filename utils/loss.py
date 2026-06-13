@@ -193,4 +193,3 @@ class FocalLoss:
         grad *= focal_weight[:, None]
         grad /= self.batch_size
         return grad
-
