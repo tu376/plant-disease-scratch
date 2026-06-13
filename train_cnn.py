@@ -1,4 +1,5 @@
 import os
+os.environ["CUPY_ACCELERATORS"] = ""
 import argparse
 import cupy as cp
 import numpy as np
@@ -13,9 +14,15 @@ from utils.data_loader import create_dataloaders, dataloader_to_cupy
 # =====================================================
 # Paths
 # =====================================================
+'''
 TRAIN_DIR = r"E:\GitHub\plant-disease-scratch\data\train"
 VAL_DIR = r"E:\GitHub\plant-disease-scratch\data\val"
 TEST_DIR = r"E:\GitHub\plant-disease-scratch\data\test"
+'''
+# Vinh path
+TRAIN_DIR = r"C:\Users\NCPC\Pictures\plant-disease-scratch\data\train"
+VAL_DIR = r"C:\Users\NCPC\Pictures\plant-disease-scratch\data\val"
+TEST_DIR = r"C:\Users\NCPC\Pictures\plant-disease-scratch\data\test"
 
 # =====================================================
 # Args
@@ -85,15 +92,18 @@ for epoch in range(args.epochs):
     total_loss, total_correct, total_samples = 0.0, 0, 0
 
     for images, labels in train_loader:
-        X_batch, y_batch = cp.asarray(images), cp.asarray(labels)
+        X_batch = cp.asarray(images)
+        y_batch = cp.asarray(labels)
 
         # Forward
         logits = cnn.forward(X_batch)
         loss = criterion.forward(logits, y_batch)
 
         # Accuracy
-        preds = cp.argmax(logits, axis=1)
-        total_correct += int(cp.sum(preds == y_batch).item())
+        preds = cp.asnumpy(logits).argmax(axis=1)
+        y_np = cp.asnumpy(y_batch)
+
+        total_correct += int((preds == y_np).sum())
         total_samples += X_batch.shape[0]
         total_loss += float(loss.item()) * X_batch.shape[0]
 
@@ -107,22 +117,30 @@ for epoch in range(args.epochs):
     train_acc = total_correct / total_samples
 
     # Validation
-    val_loss, val_acc = evaluate(cnn, X_val, y_val, criterion)
-    val_loss, val_acc = float(val_loss.item()), float(val_acc.item())
+    val_loss, val_acc = evaluate(cnn, val_loader, criterion)
 
     if val_acc > best_val_acc:
         best_val_acc = val_acc
+
         cp.savez(
             "best_cnn_weights.npz",
-            conv1_w=cnn.conv1.weight, conv1_b=cnn.conv1.bias,
-            conv2_w=cnn.conv2.weight, conv2_b=cnn.conv2.bias,
-            fc1_w=cnn.fc1.weight, fc1_b=cnn.fc1.bias,
-            fc2_w=cnn.fc2.weight, fc2_b=cnn.fc2.bias
+            conv1_w=cnn.conv1.weight,
+            conv1_b=cnn.conv1.bias,
+            conv2_w=cnn.conv2.weight,
+            conv2_b=cnn.conv2.bias,
+            fc1_w=cnn.fc1.weight,
+            fc1_b=cnn.fc1.bias,
+            fc2_w=cnn.fc2.weight,
+            fc2_b=cnn.fc2.bias
         )
 
-    print(f"Epoch [{epoch+1}/{args.epochs}] | Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f} "
-          f"| Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f}")
-
+    print(
+        f"Epoch [{epoch+1}/{args.epochs}] "
+        f"| Train Loss: {train_loss:.4f} "
+        f"| Train Acc: {train_acc:.4f} "
+        f"| Val Loss: {val_loss:.4f} "
+        f"| Val Acc: {val_acc:.4f}"
+    )
 # =====================================================
 # Evaluation & Feature Extraction
 # =====================================================

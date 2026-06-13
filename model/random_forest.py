@@ -1,5 +1,6 @@
 from sklearn.ensemble import RandomForestClassifier
-from evaluate import accuracy_score
+from sklearn.metrics import accuracy_score
+import joblib
 import joblib
 class RandomForestModel:
 
