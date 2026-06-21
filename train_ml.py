@@ -10,7 +10,6 @@ from model.random_forest import RandomForestModel
 from model.logistic_regression import LogisticRegressionModel
 from model.knn import KNeighborsClassifier
 
-# Load Data
 X_train = np.load("features/X_train.npy")
 y_train = np.load("features/y_train.npy")
 X_val = np.load("features/X_val.npy")
@@ -21,7 +20,6 @@ classes = np.load("features/classes.npy", allow_pickle=True)
 
 num_classes = len(classes)
 
-# Args
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model",
@@ -29,10 +27,6 @@ parser.add_argument(
     required=True
 )
 args = parser.parse_args()
-
-# =====================================================
-# Models
-# =====================================================
 
 if args.model == "xgboost":
     xgb = XGBoostModel(

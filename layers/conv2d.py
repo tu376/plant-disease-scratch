@@ -1,7 +1,6 @@
 import cupy as cp
 from cupy.lib.stride_tricks import as_strided
 class Conv2D:
-
     def __init__(
         self,
         in_channels,
@@ -24,33 +23,16 @@ class Conv2D:
         KH, KW = kernel_size
 
         scale = cp.sqrt(2.0 / (in_channels * KH * KW))
-        '''
         self.weight = (
             cp.random.randn(
                 out_channels,
                 in_channels,
                 KH,
                 KW
-            ).astype(cp.float16) * scale
+            ).astype(cp.float32) * scale  
         )
-
         self.bias = (
-            cp.zeros(out_channels, dtype=cp.float16)
-            if bias else None
-        )
-        '''
-        self.weight = (
-            cp.random.randn(
-                out_channels,
-                in_channels,
-                KH,
-                KW
-            ).astype(cp.float32) * scale  # <-- Đã sửa thành float32
-        )
-
-        # ĐỔI TỪ cp.float16 THÀNH cp.float32 TẠI ĐÂY
-        self.bias = (
-            cp.zeros(out_channels, dtype=cp.float32)  # <-- Đã sửa thành float32
+            cp.zeros(out_channels, dtype=cp.float32) 
             if bias else None
         )
         self.dw = None
@@ -58,12 +40,9 @@ class Conv2D:
 
         self.cache = None
 
-    # =================================================
-    # im2col
-    # =================================================
     def parameters(self):
-        """Returns the learnable weights and biases of this layer."""
         return [self.weight, self.bias]
+    
     def im2col(self, x):
 
         N, C, H, W = x.shape
@@ -117,10 +96,6 @@ class Conv2D:
         )
 
         return cols, x_padded.shape
-
-    # =================================================
-    # col2im
-    # =================================================
 
     def col2im(self, cols, x_shape):
 
@@ -176,10 +151,6 @@ class Conv2D:
             P:-P
         ]
 
-    # =================================================
-    # forward
-    # =================================================
-
     def forward(self, x):
 
         N, C, H, W = x.shape
@@ -200,21 +171,15 @@ class Conv2D:
         cols = cp.ascontiguousarray(cols)
 
         w_col = cp.ascontiguousarray(w_col)
-        
-        # THÊM DÒNG NÀY ĐỂ DỌN BỘ NHỚ ĐỆM GPU TRƯỚC KHI NHÂN MA TRẬN
         cp.get_default_memory_pool().free_bytes()
-        
-        # --- ĐOẠN SỬA LÁCH LỖI CUBLAS ---
         try:
             out = cols @ w_col.T
         except Exception as e:
-            # Nếu GPU lỗi cuBLAS, chuyển sang NumPy (CPU) để nhân rồi đẩy ngược lại Cupy
             import numpy as np
             cols_cpu = cp.asnumpy(cols)
             w_col_cpu = cp.asnumpy(w_col)
             out_cpu = cols_cpu @ w_col_cpu.T
             out = cp.array(out_cpu)
-        # ---------------------------------
 
         if self.bias is not None:
             out += self.bias
@@ -245,10 +210,6 @@ class Conv2D:
 
         return out
 
-    # =================================================
-    # backward
-    # =================================================
-
     def backward(self, dout):
 
         x, cols, padded_shape, w_col = self.cache
@@ -269,15 +230,10 @@ class Conv2D:
                 dout_reshaped,
                 axis=0
             )
-
-        # dw
-        # dw
         dout_reshaped = cp.ascontiguousarray(
             dout_reshaped
         )
         cols = cp.ascontiguousarray(cols)
-
-        # --- LÁCH LỖI CUBLAS KHI TÍNH DW ---
         try:
             dw = dout_reshaped.T @ cols
         except Exception as e:
@@ -289,9 +245,6 @@ class Conv2D:
         self.dw = dw.reshape(
             self.weight.shape
         )
-
-        # dx
-        # --- LÁCH LỖI CUBLAS KHI TÍNH DCOLS ---
         try:
             dcols = dout_reshaped @ w_col
         except Exception as e:
@@ -306,11 +259,6 @@ class Conv2D:
         )
 
         return dx
-
-
-# =====================================================
-# numerical gradient
-# =====================================================
 
 def eval_numerical_gradient(f, x, eps=1e-5):
 

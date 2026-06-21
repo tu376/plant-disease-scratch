@@ -11,9 +11,6 @@ from utils.optimizer import Adam, SGDMomentum
 from utils.loss import CrossEntropyLoss, FocalLoss
 from utils.data_loader import create_dataloaders, dataloader_to_cupy
 
-# =====================================================
-# Paths
-# =====================================================
 '''
 TRAIN_DIR = r"E:\GitHub\plant-disease-scratch\data\train"
 VAL_DIR = r"E:\GitHub\plant-disease-scratch\data\val"
@@ -24,9 +21,6 @@ TRAIN_DIR = r"C:\Users\NCPC\Pictures\plant-disease-scratch\data\train"
 VAL_DIR = r"C:\Users\NCPC\Pictures\plant-disease-scratch\data\val"
 TEST_DIR = r"C:\Users\NCPC\Pictures\plant-disease-scratch\data\test"
 
-# =====================================================
-# Args
-# =====================================================
 parser = argparse.ArgumentParser()
 parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--batch_size", type=int, default=4)
@@ -37,9 +31,6 @@ parser.add_argument("--alpha", type=float, default=1.0)
 parser.add_argument("--optimizer", type=str, default="adam", choices=["adam", "sgdmomentum"])
 args = parser.parse_args()
 
-# =====================================================
-# Data
-# =====================================================
 print("Using device: CUDA (CuPy)")
 
 train_loader, val_loader, test_loader, classes = create_dataloaders(
@@ -49,9 +40,6 @@ train_loader, val_loader, test_loader, classes = create_dataloaders(
 num_classes = len(classes)
 print("Classes:", classes)
 
-# =====================================================
-# Helper
-# =====================================================
 def get_all_features(model, dataloader):
     all_features = []
     all_labels = []
@@ -65,9 +53,6 @@ def get_all_features(model, dataloader):
         
     return np.vstack(all_features), np.hstack(all_labels)
 
-# =====================================================
-# CNN Setup
-# =====================================================
 cnn = CNN(num_classes=num_classes)
 
 if args.loss == "crossentropy":
@@ -83,9 +68,6 @@ else:
 X_val, y_val = dataloader_to_cupy(val_loader)
 X_test, y_test = dataloader_to_cupy(test_loader)
 
-# =====================================================
-# Training loop
-# =====================================================
 best_val_acc = 0.0
 
 for epoch in range(args.epochs):
@@ -95,11 +77,9 @@ for epoch in range(args.epochs):
         X_batch = cp.asarray(images)
         y_batch = cp.asarray(labels)
 
-        # Forward
         logits = cnn.forward(X_batch)
         loss = criterion.forward(logits, y_batch)
 
-        # Accuracy
         preds = cp.asnumpy(logits).argmax(axis=1)
         y_np = cp.asnumpy(y_batch)
 
@@ -107,7 +87,6 @@ for epoch in range(args.epochs):
         total_samples += X_batch.shape[0]
         total_loss += float(loss.item()) * X_batch.shape[0]
 
-        # Backward & Update
         grad = criterion.backward()
         cnn.backward(grad)
         optimizer.step()
@@ -116,7 +95,6 @@ for epoch in range(args.epochs):
     train_loss = total_loss / total_samples
     train_acc = total_correct / total_samples
 
-    # Validation
     val_loss, val_acc = evaluate(cnn, val_loader, criterion)
 
     if val_acc > best_val_acc:
@@ -141,9 +119,6 @@ for epoch in range(args.epochs):
         f"| Val Loss: {val_loss:.4f} "
         f"| Val Acc: {val_acc:.4f}"
     )
-# =====================================================
-# Evaluation & Feature Extraction
-# =====================================================
 print("\nEvaluating BEST model on Test Set...")
 weights = cp.load("best_cnn_weights.npz")
 cnn.conv1.weight[:], cnn.conv1.bias[:] = weights["conv1_w"], weights["conv1_b"]
@@ -176,7 +151,6 @@ X_test, y_test = get_all_features(cnn, test_loader)
 print("Train:", X_train.shape, y_train.shape)
 print("Test:", X_test.shape, y_test.shape)
 
-# Create directory to avoid FileNotFoundError
 os.makedirs("features", exist_ok=True)
 
 np.save("features/classes.npy", np.array(classes))

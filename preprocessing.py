@@ -117,10 +117,6 @@ def prepare_class(
     train_orig = files[: int(0.8 * n)]
     val_files = files[int(0.8 * n): int(0.9 * n)]
     test_files = files[int(0.9 * n):]
-
-    # --------------------------
-    # TRAIN
-    # --------------------------
     train_samples = [
         ("orig", f, 0)
         for f in train_orig
@@ -146,9 +142,6 @@ def prepare_class(
             )
         )
 
-    # --------------------------
-    # VAL
-    # --------------------------
     val_samples = [
         ("orig", f, 0)
         for f in val_files
@@ -160,9 +153,6 @@ def prepare_class(
             VAL_COUNT
         )
 
-    # --------------------------
-    # TEST
-    # --------------------------
     test_samples = [
         ("orig", f, 0)
         for f in test_files
