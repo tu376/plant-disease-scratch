@@ -221,9 +221,9 @@ def render():
     st.markdown(
         """
         <div style="margin-bottom:1.5rem;">
-            <h1 style="margin-bottom:0.3rem;">📊 Đánh giá hiệu suất mô hình</h1>
+            <h1 style="margin-bottom:0.3rem;">📊 Model Performance Evaluation</h1>
             <p style="color:#9ca3af; font-size:0.95rem;">
-                Confusion matrix, loss & accuracy curves, per-class metrics và so sánh mô hình.
+                Confusion matrix, loss & accuracy curves, per-class metrics and model comparison.
             </p>
         </div>
         """,
@@ -235,25 +235,25 @@ def render():
         st.markdown(
             "<div style='color:#34d399; font-weight:600; font-size:0.85rem;"
             "text-transform:uppercase; letter-spacing:0.06em; margin:1rem 0 0.5rem;'>"
-            "⚙️ Cấu hình</div>",
+            "⚙️ Configuration</div>",
             unsafe_allow_html=True,
         )
 
         weights_path = st.text_input(
-            "Đường dẫn weights (.npz)",
+            "Weights path (.npz)",
             value=os.path.join(ROOT, "cnn_weights.npz"),
         )
         data_dir = st.text_input(
-            "Thư mục gốc dataset",
+            "Dataset root directory",
             value=os.path.join(ROOT, "data"),
-            help="Thư mục chứa train/ và val/",
+            help="Directory containing train/ and val/ folders",
         )
-        batch_size = st.slider("Batch size đánh giá", 8, 64, 32, step=8)
+        batch_size = st.slider("Batch size for evaluation", 8, 64, 32, step=8)
         normalize_cm = st.checkbox("Normalize confusion matrix", value=False)
 
-        run_eval = st.button("▶ Chạy đánh giá", type="primary", use_container_width=True)
-        use_demo = st.checkbox("🎭 Dùng dữ liệu demo", value=True,
-                               help="Hiển thị dữ liệu giả lập khi chưa có weights thật")
+        run_eval = st.button("▶ Run Evaluation", type="primary", use_container_width=True)
+        use_demo = st.checkbox("🎭 Use Demo Data", value=True,
+                               help="Display fake data when real weights are not available")
 
     # ── Load / demo data ─────────────────────────────────────
     class_names = detect_classes(os.path.join(data_dir, "train"))
@@ -261,9 +261,9 @@ def render():
 
     if run_eval and not use_demo:
         if not os.path.isfile(weights_path):
-            st.error(f"❌ Không tìm thấy weights: `{weights_path}`")
+            st.error(f"❌ Cannot find weights: `{weights_path}`")
             return
-        with st.spinner("⏳ Đang chạy đánh giá..."):
+        with st.spinner("⏳ Running evaluation..."):
             result = run_full_evaluation(weights_path, os.path.join(data_dir, "train"), batch_size)
         st.session_state[data_key] = result
     elif use_demo and data_key not in st.session_state:
@@ -272,23 +272,23 @@ def render():
     data = st.session_state.get(data_key)
 
     if data is None:
-        st.info("👆 Nhấn **▶ Chạy đánh giá** hoặc bật **Dùng dữ liệu demo** để xem kết quả.")
+        st.info("👆 Click **▶ Run Evaluation** or check **🎭 Use Demo Data** to view results.")
         return
 
     if data.get("error"):
-        st.error(f"❌ Lỗi:\n```\n{data['error']}\n```")
+        st.error(f"❌ Error:\n```\n{data['error']}\n```")
         return
 
     if use_demo:
-        st.info("🎭 **Demo Mode** – Dữ liệu giả lập. Chạy `python train.py` rồi nhấn *▶ Chạy đánh giá* để xem kết quả thật.")
+        st.info("🎭 **Demo Mode** – Fake data. Run `python train.py` then click *▶ Run Evaluation* to see real results.")
 
     # ── Overview metrics ─────────────────────────────────────
-    st.markdown("### 📈 Tổng quan")
+    st.markdown("### 📈 Overview")
     render_metrics_row({
         "Accuracy":   (f"{data['accuracy']*100:.2f}%", None),
         "Macro F1":   (f"{data['macro_f1']:.4f}", None),
-        "Số classes": (str(data["num_classes"]), None),
-        "Val samples":(str(data["n_samples"]), None),
+        "Number of classes": (str(data["num_classes"]), None),
+        "Validation samples":(str(data["n_samples"]), None),
     })
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -298,13 +298,13 @@ def render():
         "🟩 Confusion Matrix",
         "📉 Loss & Accuracy Curves",
         "📊 Per-Class Metrics",
-        "🏆 So sánh mô hình",
+        "🏆 Model Comparison",
     ])
 
     # ── Tab 1: Confusion Matrix ───────────────────────────────
     with tab_cm:
         st.markdown("#### Confusion Matrix")
-        st.caption("Hàng = nhãn thực | Cột = nhãn dự đoán")
+        st.caption("Row = true label | Column = predicted label")
 
         col_cm, col_info = st.columns([3, 1])
         with col_cm:
@@ -426,7 +426,7 @@ def render():
         render_per_class_accuracy(
             data["class_names"],
             data["class_accs"],
-            title="Accuracy theo từng lớp",
+            title="Per-Class Accuracy",
         )
 
         st.markdown("#### Precision / Recall / F1 per Class")
