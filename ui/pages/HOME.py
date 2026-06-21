@@ -196,6 +196,8 @@ def render():
         <div class="plant-card">
             <div style="font-size:0.8rem; color:#6b7280; margin-bottom:1rem; font-family:'JetBrains Mono',monospace;">
                 Input: (batch, 3, 64, 64)
+                <br>
+                Output: (batch, num_classes)  →  argmax  →  predicted label
             </div>
         """
         + _arch_layer("Conv2D",   "in=3 → out=16 | kernel=3×3 | stride=1 | pad=1")
@@ -210,12 +212,7 @@ def render():
         + _arch_layer("Linear",   "8192 → 128")
         + _arch_layer("ReLU",     "Non-linear activation")
         + _arch_layer("Linear",   "128 → num_classes (output logits)")
-        + """
-            <div style="font-size:0.78rem; color:#6b7280; margin-top:1rem; font-family:'JetBrains Mono',monospace;">
-                Output: (batch, num_classes)  →  argmax  →  predicted label
-            </div>
-        </div>
-        """,
+        + "</div>",
         unsafe_allow_html=True,
     )
 
