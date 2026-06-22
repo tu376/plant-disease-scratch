@@ -280,7 +280,7 @@ def render():
         return
 
     if use_demo:
-        st.info("🎭 **Demo Mode** – Fake data. Run `python train.py` then click *▶ Run Evaluation* to see real results.")
+        st.info("🎭 **Demo Mode** – Fake data. Run `python train_cnn.py` then click *▶ Run* to see real results.")
 
     # ── Overview metrics ─────────────────────────────────────
     st.markdown("### 📈 Overview")
