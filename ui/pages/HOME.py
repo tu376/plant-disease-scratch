@@ -110,30 +110,46 @@ def render():
             "name":  "Nguyễn Gia Vinh",
             "id":    "Student ID: 202416766",
             "role":  "Team Lead",
+            "tasks": [
+                "",
+            ],
             
         },
         {
             "emoji": "👩‍💻",
             "name":  "Chu Văn An",
             "id":    "Student ID: 20235582",
-            
+            "role":  "UI Engineer",
+            "tasks": [
+                "",
+            ],
         },
         {
             "emoji": "👩‍💻",
             "name":  "Đặng Anh Tú",
             "id":    "Student ID: 202400118",
-            
+             "role":  "ML Engineer",
+            "tasks": [
+                "",
+            ],
         },
         {
             "emoji": "👩‍💻",
             "name":  "Nguyễn Thế Phương",
             "id":    "Student ID: 202416735",
-            
+            "role":  "Evaluation Engineer",
+            "tasks": [
+                "",
+            ],
         },
         {
             "emoji": "👩‍💻",
             "name":  "Hà Tùng Anh",
             "id":    "Student ID: 202416771",
+            "role":  "CNN Engineer",
+            "tasks": [
+                "",
+            ],
         },
     ]
 
