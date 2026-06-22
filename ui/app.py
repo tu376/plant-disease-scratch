@@ -3,8 +3,6 @@ app.py – Entry point for the Plant Disease Classifier Streamlit app.
 
 Run with:
     streamlit run ui/app.py
-or from project root:
-    streamlit run ui/app.py
 """
 import os
 import sys
@@ -51,9 +49,6 @@ if page == "home":
     render()
 elif page == "predict":
     from pages.PREDICT import render
-    render()
-elif page == "performance":
-    from pages.PERFORMANCE import render
     render()
 else:
     st.error(f"Page '{page}' not found.")

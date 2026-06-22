@@ -28,7 +28,6 @@ def render_sidebar():
         nav_items = [
             ("🏠", "Home",      "home"),
             ("🔬", "Predict",        "predict"),
-            ("📊", "Performance",      "performance"),
         ]
 
         current = st.session_state.get("page", "home")

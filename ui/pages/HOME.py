@@ -56,7 +56,6 @@ def render():
                 <span class="badge badge-amber">Python 3.10</span>
                 <span class="badge badge-blue">PlantVillage</span>
                 <span class="badge badge-purple">20 Classes</span>
-                <span class="badge badge-green">From Scratch</span>
             </div>
         </div>
         """,
@@ -98,13 +97,7 @@ def render():
             - Gain a deep understanding of the CNN architecture by implementing each layer from scratch
             - Utilize CuPy for accelerated computation on the GPU (NVIDIA CUDA)
             - Classify plant leaf images into 20 disease categories or healthy status
-            - Compare the performance of the CNN with traditional models: XGBoost, Random Forest, SVM
-
-            **Techniques Used:**
-            - `im2col` / `col2im` to vectorize the convolution operation
-            - Adam, SGD, SGD+Momentum optimizers
-            - Cross-Entropy Loss & Focal Loss
-            - Mini-batch gradient descent
+            - Compare the performance of the CNN with traditional models: XGBoost, Random Forest, SVM, KNN, Logistic Regression
             """
         )
 
@@ -189,6 +182,35 @@ def render():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # ── CNN Architecture ─────────────────────────────────────
+    st.markdown("### 🧠 CNN Architecture")
+    st.markdown(
+        """
+        <div class="plant-card">
+            <div style="font-size:0.8rem; color:#6b7280; margin-bottom:1rem; font-family:'JetBrains Mono',monospace;">
+                Input: (batch, 3, 64, 64)
+                <br>
+                Output: (batch, num_classes)  →  argmax  →  predicted label
+            </div>
+        """
+        + _arch_layer("Conv2D",   "in=3 → out=16 | kernel=3×3 | stride=1 | pad=1")
+        + _arch_layer("ReLU",     "Non-linear activation")
+        + _arch_layer("MaxPool2D","kernel=2×2 | stride=2  →  (16, 32, 32)")
+        + "<div style='margin:0.6rem 0; border-left:3px dashed #064e3b; padding-left:1rem; margin-left:0.5rem;'></div>"
+
+        + _arch_layer("Conv2D",   "in=16 → out=32 | kernel=3×3 | stride=1 | pad=1")
+        + _arch_layer("ReLU",     "Non-linear activation")
+        + _arch_layer("MaxPool2D","kernel=2×2 | stride=2  →  (32, 16, 16)")
+        + "<div style='margin:0.6rem 0; border-left:3px dashed #064e3b; padding-left:1rem; margin-left:0.5rem;'></div>"
+
+        + _arch_layer("Flatten",  "32 × 16 × 16 = 8192 features")
+        + _arch_layer("Linear",   "8192 → 128")
+        + _arch_layer("ReLU",     "Non-linear activation")
+        + _arch_layer("Linear",   "128 → 20 output classes")
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
     # ── Technologies ─────────────────────────────────────────
     st.markdown("### 🛠️ Technologies Used")
     tech_cols = st.columns(3)
@@ -201,7 +223,7 @@ def render():
         ("🌲 Scikit-learn", "Baseline models: SVM, Random Forest; metric utilities.",                    "amber"),
         ("🚀 XGBoost",      "Gradient boosting model using CNN features as input.",                   "blue"),
         ("📦 NumPy",        "CPU fallback and data handling.",                                           "purple"),
-        ("🔢 KaggleHub",    "Automatically download the PlantVillage dataset from Kaggle.",              "green"),
+        ("🔢 Joblib",       "Efficient serialization and caching of machine learning models.",          "green"),
     ]
     for i, (name, desc, kind) in enumerate(techs):
         with tech_cols[i % 3]:
@@ -222,33 +244,36 @@ def render():
     st.code(
         """\
 ML/
-├── train_cnn.py              # Training script for CNN (from scratch)
-├── train_ml.py               # Training script for XGBoost, SVM, Random Forest
-├── evaluate.py               # Metrics: accuracy, confusion matrix
-├── prepare_data.py           # Initialize dataset
-├── best_cnn_weights.npz      # Saved best CNN weights (loadable with np.load)
+├── train_cnn.py                # Training script for CNN (from scratch)
+├── train_ml.py                 # Training script for XGBoost, SVM, KNN, Random Forest, Logistic Regression
+├── evaluate.py                 # Metrics: accuracy, confusion matrix
+├── preprocessing.py             # Initialize dataset
+├── best_cnn_weights.npz        # Saved best CNN weights
 │
 ├── model/
-│   ├── cnn.py                # CNN model (from scratch)
-│   ├── xgboost.py            # XGBoost wrapper
-│   ├── svm.py                # SVM wrapper
-│   └── random_forest.py      # Random Forest wrapper
+│   ├── cnn.py                  # CNN model (from scratch)
+│   ├── knn.py                  # KNN wrapper
+│   ├── logistic_regression.py  # Logistic Regression wrapper
+│   ├── random_forest.py        # Random Forest wrapper
+│   ├── svm.py                  # SVM wrapper
+│   └── xgboost.py              # XGBoost wrapper
 │
 ├── layers/
-│   ├── conv2d.py             # Conv2D + im2col/col2im
-│   ├── maxpool2d.py          # MaxPool2D
-│   ├── linear.py             # Fully-connected layer
-│   └── activation.py        # ReLU, Softmax
+│   ├── conv2d.py               # Conv2D + im2col/col2im
+│   ├── maxpool2d.py            # MaxPool2D
+│   ├── linear.py               # Fully-connected layer
+│   ├── flatten.py              # Flatten layer
+│   └── activation.py           # ReLU, Softmax
 │
 ├── utils/
-│   ├── data_loader.py        # LeafDataset + DataLoader
-│   ├── optimizer.py          # Adam, SGD, SGDMomentum
-│   └── loss.py               # CrossEntropyLoss, FocalLoss
+│   ├── data_loader.py          # LeafDataset + DataLoader
+│   ├── optimizer.py            # Adam, SGD, SGDMomentum
+│   └── loss.py                 # CrossEntropyLoss, FocalLoss
 │
 ├── data/
 │   ├── test/
 │   ├── train/
-│   └── val/                  
+│   └── val/
 │
 └── ui/
     ├── app.py                # Entry point Streamlit
@@ -256,14 +281,10 @@ ML/
     ├── pages/
     │   ├── HOME.py           # Introduction & project overview
     │   ├── PREDICT.py        # Image upload + prediction results
-    │   └── PERFORMANCE.py    # Model evaluation page
     └── components/
         ├── sidebar.py        # Navigation sidebar
         ├── image_upload.py   # Upload & preprocess images
-        ├── prediction_card.py# Display prediction results
-        ├── metrics_card.py   # Metric tiles
-        ├── matrix_view.py    # Confusion matrix heatmap
-        └── charts.py         # Loss / accuracy / bar charts
+        └── prediction_card.py# Display prediction results
 """,
         language="text",
     )
@@ -277,8 +298,8 @@ ML/
             **PlantVillage** is a renowned plant leaf image dataset published by Penn State University,
             containing **54,305 images** across **38 classes** (diseased and healthy) from 14 plant species.
 
-            In this project, we selected **10 representative classes** to balance diversity and training speed. 
-            All images are resized to **64×64 pixels** and split in an **80/20** ratio (train/val).
+            In this project, we selected **20 representative classes** to balance diversity and training speed. 
+            All images are resized to **64×64 pixels** and split in an **80/10/10** ratio (train/val/test).
 
             > Source: [Kaggle PlantVillage Dataset](https://www.kaggle.com/datasets/abdallahalidev/plantvillage-dataset)
             """
@@ -294,7 +315,7 @@ ML/
                 <div style="font-size:1.6rem; font-weight:800; color:#f59e0b;">38</div>
                 <div style="font-size:0.75rem; color:#6b7280;">Full classes</div>
                 <hr style="border-color:rgba(16,185,129,0.15); margin:0.7rem 0;">
-                <div style="font-size:1.6rem; font-weight:800; color:#60a5fa;">10</div>
+                <div style="font-size:1.6rem; font-weight:800; color:#60a5fa;">20</div>
                 <div style="font-size:0.75rem; color:#6b7280;">Used in project</div>
             </div>
             """,
