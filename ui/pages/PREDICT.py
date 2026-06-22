@@ -144,7 +144,7 @@ def render():
         )
 
         top_k = st.slider("Number of top-K results to display", 3, 10, 5)
-        image_size = st.selectbox("Image resize size", [64, 128, 224], index=0)
+        image_size = st.selectbox("Image resize size", [64], index=0)
 
     # ── Class names ──────────────────────────────────────────
     class_names = detect_classes(data_dir)

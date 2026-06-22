@@ -109,54 +109,31 @@ def render():
             "emoji": "👨‍💻",
             "name":  "Nguyễn Gia Vinh",
             "id":    "Student ID: 202416766",
-            "role":  "Team Lead · CNN Dev",
-            "tasks": [
-                "Xây dựng kiến trúc CNN từ đầu (Conv2D, MaxPool2D, Linear, ReLU)",
-                "Implement backpropagation với im2col / col2im",
-                "Tích hợp CuPy GPU acceleration",
-            ],
+            "role":  "Team Lead",
+            
         },
         {
             "emoji": "👩‍💻",
             "name":  "Chu Văn An",
             "id":    "Student ID: 20235582",
-            "role":  "Data Engineer",
-            "tasks": [
-                "UI/UX implementation with Streamlit",
-            ],
+            
         },
         {
-            "emoji": "🧑‍🔬",
+            "emoji": "👩‍💻",
             "name":  "Đặng Anh Tú",
             "id":    "Student ID: 202400118",
-            "role":  "ML Engineer",
-            "tasks": [
-                "Implement optimizer: Adam, SGD, SGD Momentum",
-                "Cross-Entropy Loss và Focal Loss",
-                "Training loop và hyperparameter tuning",
-            ],
+            
         },
         {
-            "emoji": "👩‍🎨",
+            "emoji": "👩‍💻",
             "name":  "Nguyễn Thế Phương",
             "id":    "Student ID: 202416735",
-            "role":  "Evaluation · UI",
-            "tasks": [
-                "Đánh giá mô hình: confusion matrix, accuracy, F1",
-                "Thiết kế giao diện Streamlit",
-                "Báo cáo và tài liệu dự án",
-            ],
+            
         },
         {
-            "emoji": "👨‍💻",
+            "emoji": "👩‍💻",
             "name":  "Hà Tùng Anh",
             "id":    "Student ID: 202416771",
-            "role":  "Team Lead · CNN Dev",
-            "tasks": [
-                "Xây dựng kiến trúc CNN từ đầu (Conv2D, MaxPool2D, Linear, ReLU)",
-                "Implement backpropagation với im2col / col2im",
-                "Tích hợp CuPy GPU acceleration",
-            ],
         },
     ]
 
@@ -216,7 +193,7 @@ def render():
     tech_cols = st.columns(3)
     techs = [
         ("⚡ CuPy",         "GPU-accelerated NumPy. Efficient tensor computations on CUDA.",               "green"),
-        ("🐍 Python 3.10",  "Primary programming language.",                                                "amber"),
+        ("💻 Python 3.10",  "Primary programming language.",                                                "amber"),
         ("🖼️ Pillow (PIL)", "Image reading and preprocessing: resize, convert, normalize.",                       "blue"),
         ("📊 Matplotlib",   "Plotting graphs: loss curve, confusion matrix, accuracy.",                      "purple"),
         ("🌿 Streamlit",    "Web interface framework for demo and evaluation.",                   "green"),

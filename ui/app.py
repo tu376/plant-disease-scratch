@@ -3,6 +3,9 @@ app.py – Entry point for the Plant Disease Classifier Streamlit app.
 
 Run with:
     streamlit run ui/app.py
+or:
+    cd plant-disease-scratch/ui
+    streamlit run app.py
 """
 import os
 import sys
