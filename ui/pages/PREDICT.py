@@ -17,8 +17,8 @@ if ROOT not in sys.path:
 from components.image_upload    import render_image_uploader, preprocess_image
 from components.prediction_card import render_prediction_card
 
-# ── Class names (PlantVillage 10-class subset) ───────────────
-# Adjust to match the exact folder names used in your data/train/
+# ── Class names (PlantVillage 20-class) ──────────────────────
+# Matches the exact folder names used in data/train/
 DEFAULT_CLASSES = [
     "Apple___Apple_scab",
     "Apple___Black_rot",
@@ -77,7 +77,7 @@ def predict_image(model, img_array: np.ndarray, use_cupy: bool):
         logits_np = cp.asnumpy(logits)[0]  # (num_classes,)
     except Exception:
         # CPU fallback (numpy arrays)
-        logits_np = np.zeros(10)            # placeholder
+        logits_np = np.zeros(20)            # placeholder – 20 classes
     probs = softmax(logits_np)
     pred_idx = int(np.argmax(probs))
     return probs, pred_idx
@@ -123,8 +123,8 @@ def render():
 
         weights_path = st.text_input(
             "Weights file path (.npz)",
-            value=os.path.join(ROOT, "cnn_weights.npz"),
-            help="File cnn_weights.npz generated after running train.py.",
+            value=os.path.join(ROOT, "best_cnn_weights.npz"),
+            help="File best_cnn_weights.npz generated after running train.py.",
         )
 
         data_dir = st.text_input(
@@ -145,7 +145,7 @@ def render():
     if not weights_exist:
         st.warning(
             f"⚠️ Cannot find weights file at: `{weights_path}`\n\n"
-            "Run `python train.py` first to generate `cnn_weights.npz`, "
+            "Run `python train.py` first to generate `best_cnn_weights.npz`, "
             "or adjust the path in the sidebar.\n\n"
             "**Demo mode** will display the interface with synthetic data.",
         )
