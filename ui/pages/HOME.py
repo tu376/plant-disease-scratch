@@ -55,7 +55,7 @@ def render():
                 <span class="badge badge-green">CuPy GPU</span>
                 <span class="badge badge-amber">Python 3.10</span>
                 <span class="badge badge-blue">PlantVillage</span>
-                <span class="badge badge-purple">10 Classes</span>
+                <span class="badge badge-purple">20 Classes</span>
                 <span class="badge badge-green">From Scratch</span>
             </div>
         </div>
@@ -66,7 +66,7 @@ def render():
     # ── Quick stats ──────────────────────────────────────────
     col1, col2, col3, col4 = st.columns(4)
     stats = [
-        (col1, "🏷️", "10",    "Number of Disease Classes"),
+        (col1, "🏷️", "20",    "Number of Disease Classes"),
         (col2, "🖼️", "64×64", "Image Size"),
         (col3, "⚙️", "~2.1M", "Model Parameters"),
         (col4, "🚀", "CUDA",  "Training Device"),
@@ -97,7 +97,7 @@ def render():
             **Main Objectives:**
             - Gain a deep understanding of the CNN architecture by implementing each layer from scratch
             - Utilize CuPy for accelerated computation on the GPU (NVIDIA CUDA)
-            - Classify plant leaf images into 10 disease categories or healthy status
+            - Classify plant leaf images into 20 disease categories or healthy status
             - Compare the performance of the CNN with traditional models: XGBoost, Random Forest, SVM
 
             **Techniques Used:**
@@ -188,34 +188,6 @@ def render():
             )
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── CNN Architecture ─────────────────────────────────────
-    st.markdown("### 🧠 CNN Architecture")
-    st.markdown(
-        """
-        <div class="plant-card">
-            <div style="font-size:0.8rem; color:#6b7280; margin-bottom:1rem; font-family:'JetBrains Mono',monospace;">
-                Input: (batch, 3, 64, 64)
-                <br>
-                Output: (batch, num_classes)  →  argmax  →  predicted label
-            </div>
-        """
-        + _arch_layer("Conv2D",   "in=3 → out=16 | kernel=3×3 | stride=1 | pad=1")
-        + _arch_layer("ReLU",     "Non-linear activation")
-        + _arch_layer("MaxPool2D","kernel=2×2 | stride=2  →  (16, 32, 32)")
-        + "<div style='margin:0.6rem 0; border-left:3px dashed #064e3b; padding-left:1rem; margin-left:0.5rem;'></div>"
-        + _arch_layer("Conv2D",   "in=16 → out=32 | kernel=3×3 | stride=1 | pad=1")
-        + _arch_layer("ReLU",     "Non-linear activation")
-        + _arch_layer("MaxPool2D","kernel=2×2 | stride=2  →  (32, 16, 16)")
-        + "<div style='margin:0.6rem 0; border-left:3px dashed #064e3b; padding-left:1rem; margin-left:0.5rem;'></div>"
-        + _arch_layer("Flatten",  "32 × 16 × 16 = 8192 features")
-        + _arch_layer("Linear",   "8192 → 128")
-        + _arch_layer("ReLU",     "Non-linear activation")
-        + _arch_layer("Linear",   "128 → num_classes (output logits)")
-        + 
-        "</div>",
-        unsafe_allow_html=True,
-    )
 
     # ── Technologies ─────────────────────────────────────────
     st.markdown("### 🛠️ Technologies Used")
