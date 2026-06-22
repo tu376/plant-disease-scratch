@@ -22,16 +22,11 @@ DISEASE_INFO = {
     "Grape___Esca_(Black_Measles)":        ("🍇", "Grape – Esca",               "#9333ea"),
     "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": ("🍇","Grape – Leaf Blight","#c026d3"),
     "Grape___healthy":                     ("🍇", "Grape – Healthy",          "#10b981"),
-    "Tomato___Bacterial_spot":             ("🍅", "Tomato – Bacterial Spot",  "#dc2626"),
-    "Tomato___Early_blight":               ("🍅", "Tomato – Early Blight",   "#b45309"),
-    "Tomato___Late_blight":                ("🍅", "Tomato – Late Blight",  "#7f1d1d"),
-    "Tomato___Leaf_Mold":                  ("🍅", "Tomato – Leaf Mold",        "#92400e"),
-    "Tomato___Septoria_leaf_spot":         ("🍅", "Tomato – Septoria Leaf Spot",  "#b91c1c"),
-    "Tomato___Spider_mites Two-spotted_spider_mite": ("🍅","Tomato – Two-spotted Spider Mite","#c2410c"),
-    "Tomato___Target_Spot":                ("🍅", "Tomato – Target Spot",      "#ea580c"),
-    "Tomato___Tomato_Yellow_Leaf_Curl_Virus": ("🍅","Tomato Yellow Leaf Curl Virus","#d97706"),
-    "Tomato___Tomato_mosaic_virus":        ("🍅", "Tomato – Tomato Mosaic Virus",    "#ca8a04"),
-    "Tomato___healthy":                    ("🍅", "Tomato – Healthy",     "#10b981"),
+    "Orange___Haunglongbing_(Citrus_greening)": ("🍊", "Orange – Huanglongbing", "#f59e0b"),
+    "Peach___Bacterial_spot":              ("🍑", "Peach – Bacterial Spot",   "#dc2626"),
+    "Peach___healthy":                     ("🍑", "Peach – Healthy",          "#10b981"),
+    "Pepper,_bell___Bacterial_spot":       ("🌶️", "Pepper – Bacterial Spot",  "#dc2626"),
+    "Pepper,_bell___healthy":              ("🌶️", "Pepper – Healthy",         "#10b981"),
 }
 
 def _get_info(class_name: str):

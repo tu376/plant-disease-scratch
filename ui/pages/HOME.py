@@ -223,7 +223,7 @@ def render():
         ("🌲 Scikit-learn", "Baseline models: SVM, Random Forest; metric utilities.",                    "amber"),
         ("🚀 XGBoost",      "Gradient boosting model using CNN features as input.",                   "blue"),
         ("📦 NumPy",        "CPU fallback and data handling.",                                           "purple"),
-        ("🔢 Joblib",       "Efficient serialization and caching of machine learning models.",          "green"),
+        ("🗄️ Joblib",       "Efficient serialization and caching of machine learning models.",          "green"),
     ]
     for i, (name, desc, kind) in enumerate(techs):
         with tech_cols[i % 3]:
