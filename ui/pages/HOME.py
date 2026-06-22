@@ -250,10 +250,11 @@ def render():
     st.code(
         """\
 ML/
-├── train.py                  # Training loop chính
+├── train_cnn.py              # Training script for CNN (from scratch)
+├── train_ml.py               # Training script for XGBoost, SVM, Random Forest
 ├── evaluate.py               # Metrics: accuracy, confusion matrix
 ├── prepare_data.py           # Initialize dataset
-├── cnn_weights.npz           # Saved CNN weights (loadable with np.load)
+├── best_cnn_weights.npz      # Saved best CNN weights (loadable with np.load)
 │
 ├── model/
 │   ├── cnn.py                # CNN model (from scratch)
